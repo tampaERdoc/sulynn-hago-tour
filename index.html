@@ -24,7 +24,18 @@
 <script>
 (() => {
 const cvs = document.getElementById('c');
-const ctx = cvs.getContext('2d');
+let ctx = cvs.getContext('2d');
+const mainCtx = ctx;
+function bakeWith(w, h, fn){
+  const oc = document.createElement('canvas');
+  oc.width = w; oc.height = h;
+  const prev = ctx;
+  ctx = oc.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  fn();
+  ctx = prev;
+  return oc;
+}
 ctx.imageSmoothingEnabled = false;
 const W = 320, H = 240;
 
@@ -2172,13 +2183,12 @@ function initLevel(s){
   for (let i=0;i<6;i++){
     G.level.foliage.push({x: 30 + i*50 + (i*7)%20, y: 30 + (i%2)*15});
   }
+  // Bake the static portions of the scene (sky, ground, trees, water bases, lily pads, logs, bushes)
+  // Excludes: fireflies, water ripples, items, animal, player, particles, HUD
+  G.level.bakedBg = bakeWith(W, H, () => drawLevelStaticScene(s, G.level));
 }
 
-function drawLevel(){
-  const lv = G.level;
-  const s = lv.state;
-
-  // SNES-style multi-band biome palettes (sky top→horizon, ground horizon→foreground)
+function drawLevelStaticScene(s, lv){
   const biomes = {
     swamp:    {sky:['#06122a','#0e1c3a','#1a2c4a','#1a3848','#1a3a3a'],
                ground:['#1a3a20','#142a18','#0e1e12','#08140a'], moonC:'#dde0a8'},
@@ -2193,97 +2203,87 @@ function drawLevel(){
   };
   const B = biomes[s.biome] || biomes.swamp;
 
-  // ── BANDED SKY with dithered transitions ──
+  // BANDED SKY
   const bands = B.sky;
   const skyH = 95;
   for (let y=0; y<skyH; y++){
     const t = (y/skyH) * (bands.length-1);
     const i = t|0;
     const f = t - i;
-    const c1 = bands[i], c2 = bands[Math.min(i+1, bands.length-1)];
-    rect(0, y, W, 1, blendHex(c1, c2, f));
+    rect(0, y, W, 1, blendHex(bands[i], bands[Math.min(i+1,bands.length-1)], f));
   }
-  // sky dither sprinkle (subtle noise across bands)
+  // sky dither
   for (let y=4; y<skyH; y+=2){
     for (let x=0; x<W; x+=2){
       const n = noise2(x, y);
-      if (n === 0) px(x, y, 'rgba(255,255,255,0.05)');
-      else if (n === 15) px(x, y, 'rgba(0,0,0,0.1)');
+      if (n === 0) px(x, y, 'rgba(255,255,255,0.06)');
+      else if (n === 15) px(x, y, 'rgba(0,0,0,0.08)');
     }
   }
-  // stars (not for desert)
+  // stars (baked, static positions)
   if (s.biome !== 'desert'){
     for (let i=0; i<40; i++){
       const sx = (i*97+11)%W, sy = (i*43+5)%55;
-      const tw = ((globalT/12)+i)%30;
-      if (tw > 2) px(sx, sy, '#fff');
-      else if (tw > 1) px(sx, sy, '#88bbff');
+      px(sx, sy, i%3===0 ? '#88bbff' : '#fff');
     }
   }
-
-  // ── DETAILED MOON / SUN ──
+  // MOON / SUN
   if (s.biome === 'desert'){
-    // setting sun with glow halo
     for (let r=18; r>=0; r--){
       const a = (18-r)/18;
-      ctx.fillStyle = `rgba(255,${180 - r*4},${60 + r*4},${0.08 + a*0.06})`;
-      ctx.beginPath(); ctx.arc(255, 32, r+4, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = `rgba(255,${180-r*4},${60+r*4},${0.05+a*0.05})`;
+      ctx.beginPath(); ctx.arc(255,32,r+4,0,Math.PI*2); ctx.fill();
     }
     for (let r=14; r>=0; r--){
-      const t = (14-r)/14;
-      circle(255, 32, r, `rgb(${255-12*t},${190-60*t},${80+40*t})`);
+      const t=(14-r)/14;
+      circle(255,32,r,`rgb(${255-12*t},${190-60*t},${80+40*t})`);
     }
-    // sun stripes
-    for (let i=0; i<4; i++){
-      rect(243, 36+i*3, 24, 1, 'rgba(40,8,28,0.4)');
-    }
+    for (let i=0; i<4; i++) rect(243, 36+i*3, 24, 1, 'rgba(40,8,28,0.4)');
   } else {
-    // moon — round with detail
-    // halo
     for (let r=14; r>=8; r--){
-      ctx.fillStyle = `rgba(255,250,200,${0.06 + (14-r)*0.02})`;
-      ctx.beginPath(); ctx.arc(265, 28, r, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = `rgba(255,250,200,${0.06+(14-r)*0.02})`;
+      ctx.beginPath(); ctx.arc(265,28,r,0,Math.PI*2); ctx.fill();
     }
-    // moon body
     circle(265, 28, 8, B.moonC);
-    // shadow side
-    ctx.fillStyle = blendHex(B.moonC, '#000', 0.3);
-    ctx.beginPath(); ctx.arc(267, 30, 7, -Math.PI/2, Math.PI/2); ctx.fill();
-    // craters
-    circle(262, 25, 1, 'rgba(120,120,100,0.6)');
-    circle(266, 30, 1, 'rgba(120,120,100,0.4)');
-    px(269, 26, 'rgba(150,150,130,0.5)');
-    px(263, 31, 'rgba(150,150,130,0.5)');
-    // highlight
-    px(262, 24, '#fff');
+    ctx.fillStyle = blendHex(B.moonC,'#000',0.3);
+    ctx.beginPath(); ctx.arc(267,30,7,-Math.PI/2,Math.PI/2); ctx.fill();
+    circle(262,25,1,'rgba(120,120,100,0.6)');
+    circle(266,30,1,'rgba(120,120,100,0.4)');
+    px(269,26,'rgba(150,150,130,0.5)');
+    px(263,31,'rgba(150,150,130,0.5)');
+    px(262,24,'#fff');
   }
 
-  // ── BIOME-SPECIFIC SCENERY ──
-  drawBiome(s.biome, lv);
+  // BIOME-SPECIFIC SCENERY (use the rich versions but baked, with t=0 so all sway is at rest)
+  drawBiomeBaked(s.biome, lv);
 
-  // ── GROUND with dithered bands ──
-  // (drawn after biome's distant scenery but before foreground details)
-  const gbands = B.ground;
-  for (let y=95; y<H; y++){
-    const t = (y-95)/(H-95) * (gbands.length-1);
-    const i = t|0;
-    const f = t - i;
-    const c1 = gbands[i], c2 = gbands[Math.min(i+1, gbands.length-1)];
-    // Apply only where biome hasn't already drawn (most of mid/foreground)
-    // Use sparingly via dither — just for ground tint variation
-    for (let x=0; x<W; x++){
-      if (((x+y) % 17) === 0) px(x, y, blendHex(c1, c2, f));
+  // BUSHES (static positions)
+  for (const b of lv.bushes){
+    drawFoliageBush(b.x, b.y, b.big, 0, b.seed);
+  }
+
+  // TRUCK is parked, can be baked too
+  drawTruck(lv.truck.x+10, lv.truck.y, 3, true, G.collected, 0, false);
+}
+
+function drawLevel(){
+  const lv = G.level;
+  const s = lv.state;
+
+  // ── BLIT BAKED STATIC SCENE ── (sky, ground, trees, water bases, lily pads, bushes, truck)
+  if (lv.bakedBg) ctx.drawImage(lv.bakedBg, 0, 0);
+
+  // ── ANIMATED OVERLAYS (fireflies, water ripples, mist, etc.) ──
+  drawBiomeOverlay(s.biome, lv);
+
+  // ── twinkling star highlight (a few stars sparkle) ──
+  if (s.biome !== 'desert'){
+    for (let i=0; i<8; i++){
+      const sx = (i*131+11)%W, sy = (i*43+5)%55;
+      const tw = ((globalT/8)+i*3)%24;
+      if (tw < 3) px(sx, sy, '#fff');
     }
   }
-
-  // ── BUSHES (improved with proper foliage shape) ──
-  for (const b of lv.bushes){
-    const sway = Math.sin(globalT*0.05 + b.seed)*1|0;
-    drawFoliageBush(b.x, b.y, b.big, sway, b.seed);
-  }
-
-  // truck (parked, no headlights, no wagon-fill changes)
-  drawTruck(lv.truck.x+10, lv.truck.y, 3, true, G.collected, 0, false);
 
   // dropped instruments
   for (const it of lv.items){
@@ -2725,6 +2725,341 @@ function drawFern(x, y, t){
       px(x-i-1+sw|0, y-i-1, '#3a7028');
       px(x+i+1+sw|0, y-i-1, '#3a7028');
     }
+  }
+}
+
+// Static portion baked once per level — heavy ground texture + all scenery
+function drawBiomeBaked(biome, lv){
+  if (biome === 'swamp'){
+    // distant tree silhouettes
+    for (let i=0; i<10; i++){
+      drawDistantTree(15+i*32, 78, 'rgba(8,16,12,0.85)');
+    }
+    // ground: muddy moss with dithering — BAKED (cheap once)
+    for (let y=95; y<H; y++){
+      for (let x=0; x<W; x++){
+        const n = noise2(x, y);
+        let c;
+        if (n < 2) c = '#08180a';
+        else if (n < 5) c = '#102a14';
+        else if (n < 9) c = '#1a3a1c';
+        else if (n < 13) c = '#264028';
+        else c = '#305030';
+        px(x, y, c);
+      }
+    }
+    drawCypress(45, 30);
+    drawCypress(125, 22);
+    drawCypress(210, 32);
+    drawCypress(285, 26);
+    const knees = [[35,158],[78,168],[150,172],[195,162],[245,170],[295,166],[110,180],[265,184]];
+    for (const [kx,ky] of knees) drawCypressKnee(kx, ky);
+    for (let i=0; i<14; i++){
+      drawCattail(15+i*22+(i%2)*6, 195+(i%3)*5, 0);
+    }
+    // water pool bases (without animated ripples)
+    drawWaterPoolBase(20, 198, 70, 14);
+    drawWaterPoolBase(115, 205, 90, 15);
+    drawWaterPoolBase(220, 200, 80, 14);
+    drawLilyPad(50, 202, true);
+    drawLilyPad(80, 207, false);
+    drawLilyPad(140, 211, true);
+    drawLilyPad(180, 209, false);
+    drawLilyPad(250, 206, true);
+    drawLilyPad(280, 211, false);
+    drawLog(150, 215);
+  }
+  else if (biome === 'forest'){
+    for (let i=0; i<12; i++){
+      drawDistantTree(10+i*28, 76, 'rgba(20,30,28,0.85)');
+    }
+    // light shafts (baked)
+    for (let i=0; i<3; i++){
+      const sx = 80 + i*100;
+      ctx.fillStyle = 'rgba(180,200,140,0.06)';
+      ctx.beginPath();
+      ctx.moveTo(sx, 30); ctx.lineTo(sx-30, 200); ctx.lineTo(sx+30, 200); ctx.fill();
+    }
+    // ground texture
+    for (let y=95; y<H; y++){
+      for (let x=0; x<W; x++){
+        const n = noise2(x, y);
+        let c;
+        if (n < 3) c = '#0a1808';
+        else if (n < 8) c = '#1a3018';
+        else if (n < 12) c = '#2a4a26';
+        else c = '#3a5e34';
+        px(x, y, c);
+      }
+    }
+    for (let i=0; i<25; i++){
+      const lx = ((i*73+11)%W), ly = 100+((i*47)%130);
+      const lc = ['#a85020','#c87030','#8a4018'][i%3];
+      rect(lx, ly, 2, 1, lc);
+      px(lx+1, ly, blendHex(lc,'#fff',0.3));
+    }
+    drawPineTreeBig(35, 30);
+    drawPineTreeBig(105, 24);
+    drawPineTreeBig(175, 30);
+    drawPineTreeBig(250, 26);
+    drawPineTreeBig(305, 32);
+    drawFern(60, 110, 0); drawFern(140, 115, 0);
+    drawFern(210, 112, 0); drawFern(280, 116, 0);
+    drawFern(80, 175, 0); drawFern(195, 180, 0);
+    drawMushroom(75, 165); drawMushroom(185, 170); drawMushroom(245, 162);
+  }
+  else if (biome === 'bayou'){
+    for (let i=0; i<10; i++){
+      drawDistantTree(15+i*32, 80, 'rgba(20,40,40,0.7)');
+    }
+    for (let y=95; y<H; y++){
+      for (let x=0; x<W; x++){
+        const n = noise2(x, y);
+        let c;
+        if (n < 2) c = '#0a1818';
+        else if (n < 6) c = '#142a28';
+        else if (n < 10) c = '#1c3838';
+        else c = '#284a48';
+        px(x, y, c);
+      }
+    }
+    drawWillowTree(60, 30, 0);
+    drawWillowTree(165, 24, 0);
+    drawWillowTree(260, 30, 0);
+    drawWaterPoolBase(0, 190, W, 40);
+    for (let i=0; i<16; i++) drawCattail(10+i*20, 192, 0);
+    for (let i=0; i<7; i++) drawLilyPad(30+i*45, 208+((i*7)%14), i%2===0);
+    drawLog(95, 215);
+    drawLog(220, 218);
+  }
+  else if (biome === 'desert'){
+    for (let i=0; i<4; i++){
+      const mx = 20 + i*78;
+      const mh = 25 + (i%2)*8;
+      rect(mx, 90-mh, 40, mh, '#7a4a2a');
+      rect(mx, 90-mh, 40, 2, '#a87038');
+      rect(mx, 90-mh, 40, 1, '#c89048');
+      rect(mx+30, 90-mh, 10, mh, '#5a3018');
+      for (let j=0; j<3; j++) rect(mx+2+j*12, 88-mh+5, 1, mh-8, '#5a3018');
+      rect(mx, 88, 40, 2, '#3a1808');
+    }
+    for (let y=95; y<H; y++){
+      for (let x=0; x<W; x++){
+        const n = noise2(x, y);
+        let c;
+        if (n < 3) c = '#7a4818';
+        else if (n < 7) c = '#a06838';
+        else if (n < 12) c = '#c88848';
+        else c = '#e8b070';
+        px(x, y, c);
+      }
+    }
+    drawSaguaro(60, 160);
+    drawSaguaro(150, 165);
+    drawSaguaro(225, 158);
+    drawSaguaro(295, 163);
+    for (let i=0; i<8; i++){
+      const rx = 20 + (i*39+i*i*5)%270;
+      const ry = 175 + (i*17)%50;
+      rect(rx, ry, 4, 2, '#6a4828');
+      rect(rx, ry, 4, 1, '#8a6038');
+      px(rx+3, ry+1, '#3a2008');
+    }
+    drawDuneRow(0);
+    // baked cattle skull
+    rect(220, 218, 5, 3, '#e8d8c0');
+    px(222, 219, '#000'); px(223, 219, '#000');
+    px(220, 217, '#e8d8c0'); px(224, 217, '#e8d8c0');
+  }
+  else if (biome === 'mountain'){
+    drawSnowPeak(60, 25, 65);
+    drawSnowPeak(160, 18, 75);
+    drawSnowPeak(260, 28, 60);
+    drawSnowPeak(110, 50, 35);
+    drawSnowPeak(220, 52, 38);
+    for (let y=95; y<H; y++){
+      for (let x=0; x<W; x++){
+        const n = noise2(x, y);
+        let c;
+        if (n < 3) c = '#3a4858';
+        else if (n < 7) c = '#5a6a7a';
+        else if (n < 11) c = '#a8b8c8';
+        else c = '#f0f4ff';
+        px(x, y, c);
+      }
+    }
+    drawPineTreeBig(50, 80);
+    drawPineTreeBig(135, 88);
+    drawPineTreeBig(225, 82);
+    drawPineTreeBig(295, 86);
+    for (let i=0; i<6; i++){
+      const tx = 30 + i*48, ty = 130;
+      rect(tx-1, ty+8, 3, 8, '#3a1f10');
+      ctx.fillStyle = '#0a2a1a';
+      ctx.beginPath(); ctx.moveTo(tx-5, ty+10); ctx.lineTo(tx, ty); ctx.lineTo(tx+5, ty+10); ctx.fill();
+      ctx.fillStyle = '#1a4a2a';
+      ctx.beginPath(); ctx.moveTo(tx-3, ty+9); ctx.lineTo(tx, ty+2); ctx.lineTo(tx+3, ty+9); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.moveTo(tx-4, ty+10); ctx.lineTo(tx-2, ty+6); ctx.lineTo(tx-1, ty+10); ctx.fill();
+    }
+    for (let i=0; i<6; i++){
+      const rx = 30 + (i*53)%270, ry = 175 + (i*23)%55;
+      rect(rx, ry, 6, 3, '#3a4858');
+      rect(rx, ry, 6, 1, '#5a6a7a');
+      rect(rx+1, ry+2, 4, 1, '#1a2030');
+      rect(rx+1, ry-1, 4, 1, '#fff');
+    }
+  }
+}
+
+function drawWaterPoolBase(x, y, w, h){
+  rect(x, y, w, h, '#0e2438');
+  rect(x, y, w, 2, '#06182a');
+  rect(x, y+h-1, w, 1, '#1a3a4a');
+  rect(x-1, y, 1, h, '#0a1a08');
+  rect(x+w, y, 1, h, '#0a1a08');
+}
+
+// Animated overlay drawn each frame on top of the baked background
+function drawBiomeOverlay(biome, lv){
+  if (biome === 'swamp'){
+    // animated mist drift along horizon
+    for (let x=0; x<W; x+=2){
+      const m = Math.sin((globalT+x*4)*0.02);
+      if (m > 0.4) px(x, 92, 'rgba(180,200,180,0.4)');
+      if (m > 0.6) px(x, 93, 'rgba(160,180,160,0.3)');
+    }
+    // water ripples and glints over the baked pool bases
+    drawWaterRipples(20, 198, 70, 14, globalT);
+    drawWaterRipples(115, 205, 90, 15, globalT);
+    drawWaterRipples(220, 200, 80, 14, globalT);
+    // spanish moss sway (overdraw at the same positions; will visually blend)
+    drawMossSway(45, 30); drawMossSway(125, 22);
+    drawMossSway(210, 32); drawMossSway(285, 26);
+    // cattail subtle sway tips
+    for (let i=0; i<14; i++){
+      const cx = 15+i*22+(i%2)*6, cy = 195+(i%3)*5;
+      const sw = Math.sin(globalT*0.04 + cx*0.1)*1|0;
+      if (sw !== 0){
+        px(cx+sw, cy-13, '#6a3a18');
+      }
+    }
+    // fireflies with glow
+    for (let i=0; i<14; i++){
+      const fx = (i*47 + globalT/2)%W;
+      const fy = 35 + ((i*23 + globalT/4)%110);
+      const phase = ((globalT/6 + i*3)|0) % 8;
+      if (phase < 5){
+        ctx.fillStyle = 'rgba(255,220,100,0.3)';
+        ctx.fillRect(fx-1, fy-1, 3, 3);
+        ctx.fillStyle = 'rgba(255,220,100,0.6)';
+        ctx.fillRect(fx-2, fy, 5, 1);
+        ctx.fillRect(fx, fy-2, 1, 5);
+        px(fx, fy, '#fff8a0');
+      }
+    }
+  }
+  else if (biome === 'forest'){
+    // gentle leaf fall
+    for (let i=0; i<6; i++){
+      const lx = (i*47 + globalT*0.3)%W;
+      const ly = (i*39 + globalT*0.8)%H;
+      px(lx|0, ly|0, ['#a85020','#c87030','#8a4018'][i%3]);
+    }
+    // fern sway
+    drawFern(60, 110, globalT); drawFern(140, 115, globalT);
+    drawFern(210, 112, globalT); drawFern(280, 116, globalT);
+    drawFern(80, 175, globalT); drawFern(195, 180, globalT);
+  }
+  else if (biome === 'bayou'){
+    // animated mist
+    for (let i=0; i<W; i+=2){
+      const m = Math.sin((globalT+i)*0.03);
+      if (m > 0.3) px(i, 90+(m*3|0), 'rgba(200,210,200,0.4)');
+      if (m > 0.6) px(i, 130+(m*4|0), 'rgba(180,200,180,0.3)');
+    }
+    // water ripples
+    drawWaterRipples(0, 190, W, 40, globalT);
+    // willow branch sway (re-paint moss strands)
+    drawWillowBranches(60, 30, globalT);
+    drawWillowBranches(165, 24, globalT);
+    drawWillowBranches(260, 30, globalT);
+    // dragonflies
+    for (let i=0; i<3; i++){
+      const dx = ((i*97 + globalT/2)%W);
+      const dy = 100 + Math.sin((globalT+i*30)*0.04)*8;
+      rect(dx-1, dy|0, 3, 1, '#6aaa9a');
+      px(dx-2, (dy|0)-1, '#3a8a6a');
+      px(dx+2, (dy|0)-1, '#3a8a6a');
+    }
+  }
+  else if (biome === 'desert'){
+    // sun-ray atmosphere shimmer
+    for (let i=0; i<W; i+=8){
+      if (noise2(i, 88 + (globalT/8|0)) > 11) px(i, 93, 'rgba(255,200,120,0.4)');
+    }
+    // tumbleweed rolling
+    const tw = ((globalT*0.7)%(W+20))-10;
+    rect(tw|0, 210, 6, 5, '#8a5018');
+    px((tw|0)+1, 211, '#aa7038');
+    px((tw|0)+3, 212, '#aa7038');
+    px((tw|0)+4, 211, '#5a3010');
+  }
+  else if (biome === 'mountain'){
+    // 3-layer parallax falling snow
+    for (let i=0; i<35; i++){
+      const sx = (i*37 + globalT*0.4)%W;
+      const sy = (i*23 + globalT*1.8)%H;
+      const sz = (i%3)+1;
+      if (sz === 1) px(sx|0, sy|0, 'rgba(255,255,255,0.6)');
+      else if (sz === 2) px(sx|0, sy|0, '#fff');
+      else { rect(sx|0, sy|0, 2, 2, '#fff'); }
+    }
+  }
+}
+
+function drawWaterRipples(x, y, w, h, t){
+  for (let r=0; r<3; r++){
+    const ry = y + 2 + r*3;
+    for (let xi=0; xi<w; xi+=2){
+      const wob = Math.sin((t*0.08 + xi*0.25 + r*1.5));
+      if (wob > 0.3) px(x+xi, ry+(wob|0), '#3a6a8a');
+      if (wob > 0.7) px(x+xi+1, ry+(wob|0), '#5a8aaa');
+    }
+  }
+  for (let i=0; i<4; i++){
+    const sx = x + 4 + ((i*11 + (t/8|0))%(w-8));
+    const sy = y + 3 + (i%2)*4;
+    rect(sx, sy, 3, 1, '#7aaaca');
+    px(sx+1, sy+1, '#5a8aaa');
+  }
+}
+
+function drawMossSway(x, y){
+  // animate just a few sway pixels on top of baked Spanish moss
+  const mossXs = [-12,-8,-4,1,5,10,13];
+  for (const mx of mossXs){
+    const wob = Math.sin(globalT*0.03 + mx*0.7)*1;
+    const baseY = y + 24;
+    const len = 6 + ((Math.abs(mx)*3 + mx*mx)%6);
+    // animate just the tip
+    const tipX = x+mx+wob|0;
+    px(tipX, baseY+len, '#5a8a3a');
+    px(tipX, baseY+len-1, '#4a7a2a');
+  }
+}
+
+function drawWillowBranches(x, y, t){
+  // re-paint just the swaying ends of willow branches
+  const strands = [-12,-9,-6,-3,0,3,6,9,12];
+  for (const sx of strands){
+    const sway = Math.sin(t*0.03 + sx*0.4)*1.5;
+    const len = 14 + (Math.abs(sx)%5);
+    for (let i=Math.max(0, len-4); i<len; i++){
+      const wob = sway * (i/len);
+      px(x+sx+wob|0, y+18+i, i%2===0 ? '#3a7028' : '#1a3a18');
+    }
+    px(x+sx+sway|0, y+18+len, '#5a8a3a');
   }
 }
 
