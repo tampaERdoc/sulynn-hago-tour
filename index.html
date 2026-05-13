@@ -804,54 +804,124 @@ const TOUR = [
 /* ─── REALISTIC USA MAP DATA ─── */
 // Continental US outline (clockwise from Pacific NW)
 const US_POLY = [
-  // Pacific Northwest down coast to San Diego
-  [40,64], [33,76], [35,88], [36,102], [40,116], [44,128], [48,140],
-  [52,150], [56,158], [62,164],
-  // Mexican border heading east (with Big Bend dip)
-  [74,165], [88,164], [102,165], [116,168], [124,172], [130,176],
-  [136,180], [140,178],
-  // Texas Gulf coast east to LA
-  [146,174], [156,170], [166,168], [174,168],
-  // Louisiana delta
-  [180,170], [184,173], [186,177], [189,174], [194,170],
-  // MS/AL/FL panhandle
-  [205,168], [216,167], [225,168],
-  // Florida peninsula (with Big Bend concave dip)
-  [232,170], [236,174], [238,179], [239,184], [242,190], [246,196],
-  [250,201], [253,203], [255,200], [257,194], [256,188], [253,180],
-  [252,172], [251,166],
-  // SE Atlantic coast going north
-  [253,158], [257,149], [262,140], [266,132], [267,126],
-  [261,121], [258,114], [261,107], [259,100], [263,93], [270,86],
-  // New England
-  [276,80], [273,74], [278,68], [284,72], [281,66], [279,60],
-  [284,52], [286,46],
-  // Maine north then west along Canada
-  [276,46], [264,50], [250,54], [234,58], [218,62], [204,66], [194,67],
-  // Great Lakes northern shore (dips down for lake skyline)
-  [184,64], [178,60], [168,58], [156,56], [144,54], [128,54],
-  [110,54], [92,55], [76,56], [60,58], [48,60]
+  // Pacific Northwest — Puget Sound, Olympic Peninsula
+  [42,62], [38,66], [33,72], [32,80],
+  // OR coast
+  [35,88], [36,96], [38,106], [40,116],
+  // N CA coast (Mendocino bulge)
+  [43,124], [42,130], [44,136],
+  // SF Bay area inlet
+  [46,140], [48,142], [50,144],
+  // Central CA coast (Monterey, Big Sur)
+  [49,148], [51,152], [54,156], [56,158],
+  // Pt Conception → LA basin → San Diego
+  [58,160], [60,163], [63,165], [66,166],
+  // Mexican border (slight dip near Sonoran Desert)
+  [75,166], [86,165], [98,165], [108,166], [116,168],
+  // Big Bend / Rio Grande mouth — south tip of TX
+  [124,172], [130,176], [134,179], [137,181], [139,179],
+  // Texas Gulf coast — Corpus, Galveston
+  [144,174], [152,170], [161,168], [170,167],
+  // Louisiana delta (Mississippi River outlet)
+  [177,169], [181,172], [184,176], [186,178], [188,176], [191,173], [196,170],
+  // MS / AL coast → Mobile Bay dip
+  [202,168], [208,170], [214,168], [220,167], [226,168],
+  // FL Panhandle (Apalachicola)
+  [232,170], [236,173],
+  // FL Big Bend (concave inland curve before peninsula)
+  [237,178], [238,183],
+  // FL Gulf coast (Tampa Bay area)
+  [240,188], [243,193], [246,198],
+  // FL Keys (south tip — Key West)
+  [249,202], [253,204], [255,202],
+  // FL Atlantic side coming back up — Miami, Palm Beach, Cape Canaveral
+  [257,196], [256,188], [255,180], [253,172], [252,164],
+  // GA coast — Savannah, Brunswick
+  [254,158], [256,152], [259,148],
+  // SC coast — Charleston, Myrtle Beach
+  [262,143], [265,140],
+  // NC Outer Banks — BIG eastward bulge (Cape Hatteras)
+  [270,138], [274,136], [276,134], [275,131], [272,128], [269,125],
+  // Hampton Roads / Norfolk VA
+  [266,123], [263,121],
+  // Chesapeake Bay mouth (Cape Charles to come)
+  [262,118],
+  // East coast of Delmarva Peninsula
+  [265,115], [266,110], [266,105],
+  // Delaware Bay mouth + Cape May NJ
+  [263,101], [264,98],
+  // NJ shore — Atlantic City, Asbury Park
+  [266,94], [268,90], [270,88],
+  // NY Harbor → Long Island (peninsula bulging east)
+  [272,88], [277,89], [283,90], [288,91], [292,90],
+  [291,87], [285,86], [280,85], [275,84],
+  // CT coast (south-facing) — Long Island Sound shown as inlet later
+  [272,82], [274,79],
+  // RI coast — Narragansett Bay
+  [276,77], [279,76],
+  // Cape Cod — distinctive hook curling north
+  [283,75], [286,74], [289,73],
+  [291,71], [290,68], [287,67], [283,68], [280,72],
+  // MA/NH coast — north of Cape Cod
+  [281,64], [283,60], [284,57],
+  // Maine coast — Portland, then jagged Down East
+  [286,53], [288,49], [289,46],
+  // Down East ME — Acadia, Eastport (easternmost lower-48)
+  [291,43], [292,40], [290,38], [287,38],
+  // Maine north / Canadian border (heading WEST)
+  [281,40], [273,42], [262,46], [248,50],
+  [234,54], [220,58], [206,60], [196,62],
+  // Northern border by Great Lakes
+  [186,60], [176,58], [164,56], [152,54], [138,53],
+  [122,53], [104,54], [86,55], [70,56], [56,58]
 ];
 
-// Great Lakes (drawn on top of land)
+// Great Lakes (drawn on top of land in blue)
 const GREAT_LAKES = [
-  // Lake Superior — large oval, sits along MN/WI/MI north shore
-  [[164,62],[174,60],[186,61],[194,64],[192,68],[182,69],[170,69],[162,66]],
-  // Lake Michigan — vertical, between WI and MI
-  [[186,68],[192,68],[193,76],[191,84],[188,88],[185,84],[184,76]],
-  // Lake Huron — between MI lower and MI upper / Canada
-  [[197,68],[205,67],[208,74],[207,82],[202,84],[198,78]],
-  // Lake Erie — horizontal, NY/PA/OH/MI
-  [[208,79],[222,77],[230,79],[228,82],[218,83],[210,82]],
-  // Lake Ontario — small, between NY and Canada
-  [[227,73],[238,72],[240,76],[233,77],[228,76]],
+  // Lake Superior — large, irregular shape
+  [[160,62],[170,60],[180,60],[188,61],[194,64],[196,66],[192,69],
+   [184,70],[176,70],[168,68],[162,66]],
+  // Lake Michigan — long vertical
+  [[185,69],[190,68],[193,70],[194,76],[192,84],[189,90],[185,87],[183,80],[184,73]],
+  // Lake Huron — angled
+  [[197,68],[202,66],[208,68],[210,74],[209,82],[204,84],[200,80],[198,74]],
+  // Lake Erie — horizontal
+  [[210,78],[220,76],[232,78],[234,82],[226,84],[214,84],[210,82]],
+  // Lake Ontario — small horizontal
+  [[227,72],[236,71],[243,73],[243,76],[236,77],[228,76]],
 ];
 
-// Mississippi River path (MN -> Gulf of Mexico)
-const MISSISSIPPI = [
-  [155,62], [157,72], [160,84], [165,96], [168,108], [171,120],
-  [174,132], [177,144], [179,154], [182,164], [184,170], [186,176]
+// Major US bays drawn as water cutouts on top of land
+const BAYS = [
+  // Chesapeake Bay — long north-south inlet (carves between Delmarva and mainland)
+  [[262,118],[260,121],[257,126],[254,131],[253,136],[256,138],[259,134],
+   [261,128],[263,123],[264,120]],
+  // Delaware Bay — smaller
+  [[263,101],[260,104],[259,108],[262,108],[264,104]],
+  // Long Island Sound — between LI and CT
+  [[273,84],[277,85],[282,86],[286,86],[285,87],[280,88],[275,88],[272,87]],
+  // Massachusetts Bay — inside Cape Cod hook
+  [[281,68],[284,68],[286,70],[284,72],[281,72]],
+  // Tampa Bay
+  [[238,182],[240,185],[241,188],[238,188],[237,185]],
+  // San Francisco Bay
+  [[44,138],[46,140],[47,143],[44,143],[43,140]],
+  // Puget Sound
+  [[38,64],[40,68],[39,72],[36,72],[36,68]],
 ];
+
+// Major US Rivers — wavy line definitions
+const RIVERS = {
+  Mississippi: [[156,60],[158,68],[160,78],[163,88],[167,98],[170,108],
+                [174,118],[177,128],[180,138],[183,148],[185,158],[186,166],[187,173]],
+  Missouri:    [[100,62],[110,68],[120,76],[130,84],[140,92],[150,102],[158,112],[164,118]],
+  Ohio:        [[200,108],[208,114],[214,118],[222,124],[228,128],[230,130]],
+  RioGrande:   [[100,138],[110,148],[120,156],[130,164],[136,170],[138,176]],
+  Colorado:    [[80,98],[78,110],[72,122],[68,134],[65,142]],
+  ColumbiaR:   [[55,62],[48,68],[42,76],[38,82]],
+  Hudson:      [[268,80],[266,86],[268,90]],
+  StLawrence:  [[244,68],[252,70],[262,68],[270,64]],
+};
 
 /* ─── Polygon helpers ─── */
 function pointInPoly(x, y, poly){
@@ -883,179 +953,591 @@ function fillPoly(cx, poly, color){
   }
 }
 
-function getBiomeColor(x, y){
-  // returns a color for land at (x,y), based on geographic region.
-  // Florida swamp
-  if (x>=232 && y>=170) return ((x+y)%3===0)?'#2a6a3a':'#3a7a4a';
-  // Pacific NW forest (heavy pines)
-  if (x<55 && y<108) return ((x+y)%4===0)?'#1a4a2a':'#2a6a3a';
-  // Northern CA forest
-  if (x<58 && y>=108 && y<140) return ((x*3+y)%5===0)?'#2a6a3a':'#3a8b4a';
-  // Southern CA / coast (drier)
-  if (x<65 && y>=140 && y<168) return ((x+y*2)%6===0)?'#b8a070':'#88a060';
-  // Rockies (sparse mountain, snow caps)
-  if (x>=65 && x<108 && y>=64 && y<160){
-    const h = (x*17 + y*13) % 19;
-    if (h<2) return '#fff'; // snow
-    if (h<6) return '#6a5a4a'; // rock
-    if (h<8) return '#7a6a5a';
-    if (h<12) return '#5a8a4a';
-    return '#3a6a3a';
-  }
-  // SW Desert (NM, AZ, west TX)
-  if (x>=72 && x<140 && y>=148 && y<170){
-    const d = (x+y*3)%5;
-    if (d===0) return '#a86830';
-    return '#d8a060';
-  }
-  // Great Plains (central)
-  if (x>=108 && x<175 && y>=60 && y<150){
-    const p = (x+y)%3;
-    return p===0 ? '#a89048' : '#bca050';
-  }
-  // Texas
-  if (x>=125 && x<180 && y>=150 && y<175) return ((x+y)%4===0)?'#a87a3a':'#b89050';
-  // Louisiana bayou
-  if (x>=180 && x<200 && y>=155 && y<170) return ((x+y)%3===0)?'#2a5a4a':'#3a7a5a';
-  // Appalachians
-  if (x>=225 && x<265 && y>=90 && y<140){
-    const a = (x*7+y*5)%9;
-    if (a<2) return '#4a6a4a';
-    if (a<5) return '#3a5a3a';
-    return '#2a7a3a';
-  }
-  // Eastern forests
-  if (x>=170 && y<145){
-    const e = (x*3+y)%5;
-    if (e===0) return '#1a4a2a';
-    return '#2a6a3a';
-  }
-  // SE coastal plain
-  if (x>=200 && y>=145) return ((x+y)%4===0)?'#3a8a4a':'#4a9a5a';
-  return null;
+/* ─── SNES-style palette ─── */
+const PAL = {
+  // ocean
+  abyss: '#06122a', deep: '#0e2a5a', mid: '#1a4280', shal: '#2a66a8', foam: '#5a96d2',
+  // land base
+  coastDark: '#1a3a1a', grass1: '#2a6a32', grass2: '#3a8b3e', grass3: '#5cba56', grass4: '#88dc76',
+  // pine forest
+  pineShdw: '#08200a', pineDark: '#1a3a18', pineMid: '#2a5a26', pineLite: '#4a8a3a', trunk: '#3a2010',
+  // mountain
+  rockShdw: '#1a1828', rockDark: '#3a3038', rockMid: '#5a4a48', rockLite: '#806858', rockHi: '#a08868', snowShdw: '#a8b0c0', snow: '#f0f4ff', snowHi: '#ffffff',
+  // desert
+  sandShdw: '#7a4a18', sand: '#c08038', sandLite: '#e8b060', sandHi: '#fad890', cactus: '#2a5a28', cactusLite: '#4a8a3a', cactusFl: '#ff70a0',
+  // plains/wheat
+  wheatShdw: '#806030', wheat: '#b08840', wheatLite: '#d8b060', wheatHi: '#f0d080',
+  // bayou
+  bayouDark: '#142a28', bayou: '#244838', bayouLite: '#3a6248', bayouRefl: '#588568',
+  // chaparral (S CA)
+  chapShdw: '#6a5028', chap: '#9a7e44', chapLite: '#bca068',
+  // appalachian
+  appShdw: '#1a3018', appMid: '#3a6038', appLite: '#56864a',
+  // snow caps / tundra
+  tundra: '#c8d4d8',
+};
+
+/* ─── 2-D ordered Bayer-style dither (size 4x4) for soft biome edges ─── */
+function dither4(x, y, t){
+  // returns true if pixel should be highlight, given threshold t (0..15)
+  const M = [
+     0, 8, 2,10,
+    12, 4,14, 6,
+     3,11, 1, 9,
+    15, 7,13, 5
+  ];
+  return M[(y&3)*4 + (x&3)] < t;
+}
+function noise2(x, y){
+  // deterministic pseudo-noise 0..15
+  return ((x*73 + y*131 + x*y*5) % 16 + 16) % 16;
 }
 
 /* ─── Pre-render the static map to an offscreen canvas ─── */
-let mapBaked = null;
+let mapBaked = null, landMask = null;
 function bakeMap(){
   if (mapBaked) return;
   const oc = document.createElement('canvas');
   oc.width = W; oc.height = H;
   const ocx = oc.getContext('2d');
   ocx.imageSmoothingEnabled = false;
+  const P = (x,y,c) => { ocx.fillStyle=c; ocx.fillRect(x,y,1,1); };
 
-  // ocean base
-  ocx.fillStyle = '#1a3a7a';
-  ocx.fillRect(0, 35, W, H-35);
-  // ocean depth bands
-  for (let y=35; y<H; y+=8){
-    ocx.fillStyle = 'rgba(10,30,90,0.18)';
-    ocx.fillRect(0, y, W, 4);
+  // ── BUILD LAND MASK (one-shot, all subsequent ops are O(1) lookups) ──
+  landMask = new Uint8Array(W*H);
+  for (let y=35; y<H; y++){
+    for (let x=0; x<W; x++){
+      if (pointInPoly(x, y, US_POLY)) landMask[y*W+x] = 1;
+    }
+  }
+  const isL = (x,y) => x>=0 && x<W && y>=0 && y<H && landMask[y*W+x]===1;
+
+  // ── DEEP OCEAN with bathymetric gradient ──
+  for (let y=35; y<H; y++){
+    const t = (y-35)/(H-35);
+    const r = (0x0e + (0x1a-0x0e)*t)|0;
+    const g = (0x2a + (0x42-0x2a)*t)|0;
+    const b = (0x5a + (0x80-0x5a)*t)|0;
+    ocx.fillStyle = `rgb(${r},${g},${b})`;
+    ocx.fillRect(0, y, W, 1);
+  }
+  // ocean texture — subtle horizontal striation
+  for (let y=37; y<H; y+=3){
+    for (let x=0; x<W; x++){
+      if (isL(x,y)) continue;
+      const n = noise2(x, y);
+      if (n < 3) P(x, y, 'rgba(90,150,210,0.15)');
+      else if (n < 5) P(x, y, 'rgba(20,40,80,0.18)');
+    }
+  }
+  // foam line near top
+  for (let x=0; x<W; x+=1){
+    if (noise2(x, 35) > 12) P(x, 35, PAL.foam);
+    if (noise2(x, 36) > 13) P(x, 36, '#7aaad8');
   }
 
-  // land base fill
-  fillPoly(ocx, US_POLY, '#3a8b4a');
+  // ── COASTAL SHALLOW WATER GLOW ──
+  for (let y=36; y<H; y++){
+    for (let x=0; x<W; x++){
+      if (isL(x,y)) continue;
+      let near = 0;
+      for (let r=1; r<=4; r++){
+        if (isL(x+r,y) || isL(x-r,y) || isL(x,y+r) || isL(x,y-r) ||
+            isL(x+r,y+r) || isL(x-r,y-r)){
+          near = r; break;
+        }
+      }
+      if (near === 1) P(x, y, PAL.foam);
+      else if (near === 2) P(x, y, '#3a78bc');
+      else if (near === 3) P(x, y, '#2868a8');
+      else if (near === 4 && noise2(x,y)>9) P(x, y, '#1e5298');
+    }
+  }
 
-  // biome colors (pixel by pixel within polygon)
+  // ── LAND BASE ──
+  fillPoly(ocx, US_POLY, PAL.grass2);
+
+  // ── BIOME PAINT (uses precomputed mask) ──
   for (let y=44; y<206; y++){
-    for (let x=30; x<290; x++){
-      if (!pointInPoly(x, y, US_POLY)) continue;
-      const c = getBiomeColor(x, y);
-      if (c){ ocx.fillStyle = c; ocx.fillRect(x, y, 1, 1); }
+    for (let x=28; x<295; x++){
+      if (!isL(x,y)) continue;
+      const c = paintBiome(x, y, noise2(x,y));
+      if (c) P(x, y, c);
     }
   }
 
-  // coastline darker outline
-  for (let i=0; i<US_POLY.length; i++){
-    const a = US_POLY[i], b = US_POLY[(i+1)%US_POLY.length];
-    const steps = Math.max(2, Math.hypot(b[0]-a[0], b[1]-a[1])|0);
-    for (let s=0; s<=steps; s++){
-      const t=s/steps;
-      const x=(a[0]+(b[0]-a[0])*t)|0, y=(a[1]+(b[1]-a[1])*t)|0;
-      ocx.fillStyle='#1a3a1a';
-      ocx.fillRect(x, y, 1, 1);
+  // ── COASTLINE OUTLINE ──
+  for (let y=36; y<H-2; y++){
+    for (let x=2; x<W-2; x++){
+      if (!isL(x,y)) continue;
+      if (!isL(x-1,y) || !isL(x+1,y) || !isL(x,y-1) || !isL(x,y+1)){
+        P(x, y, PAL.coastDark);
+      }
+    }
+  }
+  // Inner beach (1px sand strip just inland from coast)
+  for (let y=36; y<H-2; y++){
+    for (let x=2; x<W-2; x++){
+      if (!isL(x,y)) continue;
+      const isCoast = !isL(x-1,y) || !isL(x+1,y) || !isL(x,y-1) || !isL(x,y+1);
+      if (isCoast) continue;
+      const nearCoast = !isL(x-2,y) || !isL(x+2,y) || !isL(x,y-2) || !isL(x,y+2);
+      if (nearCoast && (noise2(x,y) > 6)) P(x, y, PAL.sandLite);
     }
   }
 
-  // Great Lakes
+  // ── BAYS (cut water shapes into land) ──
+  for (const bay of BAYS){
+    fillPoly(ocx, bay, PAL.mid);
+    // inner shimmer
+    for (let i=0; i<bay.length; i++){
+      const a = bay[i], b = bay[(i+1)%bay.length];
+      strokePath(ocx, a, b, PAL.shal);
+    }
+  }
+
+  // ── GREAT LAKES ──
   for (const lake of GREAT_LAKES){
-    fillPoly(ocx, lake, '#1a3a7a');
-    // light shimmer
+    fillPoly(ocx, lake, PAL.deep);
+    // shore highlight
     for (let i=0; i<lake.length; i++){
       const a = lake[i], b = lake[(i+1)%lake.length];
+      strokePath(ocx, a, b, PAL.shal);
+    }
+    // surface shimmer
+    let yMin=999,yMax=0,xMin=999,xMax=0;
+    for (const p of lake){
+      if(p[1]<yMin)yMin=p[1];if(p[1]>yMax)yMax=p[1];
+      if(p[0]<xMin)xMin=p[0];if(p[0]>xMax)xMax=p[0];
+    }
+    for (let y=yMin+1;y<yMax;y++) for(let x=xMin+1;x<xMax;x++){
+      if (pointInPoly(x,y,lake) && noise2(x,y)===5) P(x,y,PAL.foam);
+    }
+  }
+
+  // ── RIVERS ──
+  for (const name in RIVERS){
+    const r = RIVERS[name];
+    for (let i=0; i<r.length-1; i++){
+      const a = r[i], b = r[i+1];
       const steps = Math.max(2, Math.hypot(b[0]-a[0], b[1]-a[1])|0);
       for (let s=0; s<=steps; s++){
         const t=s/steps;
         const x=(a[0]+(b[0]-a[0])*t)|0, y=(a[1]+(b[1]-a[1])*t)|0;
-        ocx.fillStyle='#3a6aaa'; ocx.fillRect(x, y, 1, 1);
+        if (!pointInPoly(x, y, US_POLY)) continue;
+        const wob = Math.sin(y*0.5 + x*0.3)*1|0;
+        P(x+wob, y, PAL.shal);
+        P(x+wob, y+1, PAL.mid);
+        // wider for Mississippi
+        if (name === 'Mississippi') P(x+wob+1, y, PAL.shal);
       }
     }
   }
 
-  // Mississippi River
-  for (let i=0; i<MISSISSIPPI.length-1; i++){
-    const a = MISSISSIPPI[i], b = MISSISSIPPI[i+1];
-    const steps = Math.max(2, Math.hypot(b[0]-a[0], b[1]-a[1])|0);
-    for (let s=0; s<=steps; s++){
-      const t=s/steps;
-      const x=(a[0]+(b[0]-a[0])*t)|0, y=(a[1]+(b[1]-a[1])*t)|0;
-      const wob = Math.sin(y*0.4)*1|0;
-      ocx.fillStyle='#3a7abf'; ocx.fillRect(x+wob, y, 1, 1);
-      ocx.fillStyle='#1a3a7a'; ocx.fillRect(x+wob, y+1, 1, 1);
-    }
-  }
-
-  // Mountain icons on Rockies (chunky ^ shapes with snow)
-  const rockies = [[72,72],[80,82],[90,76],[78,94],[88,104],[75,114],[85,122],[95,90],[100,108],[92,134],[82,142],[100,128]];
+  // ── ROCKIES — proper mountain sprites ──
+  const rockies = [
+    [72,76],[80,72],[90,80],[98,72],[78,88],[88,96],[100,92],[76,104],[86,112],
+    [96,108],[80,120],[92,124],[100,118],[85,132],[95,140],[78,144],[88,148]
+  ];
   for (const [mx,my] of rockies){
     if (!pointInPoly(mx, my, US_POLY)) continue;
-    ocx.fillStyle='#5a4a3a';
-    ocx.beginPath(); ocx.moveTo(mx-3,my+3); ocx.lineTo(mx,my-3); ocx.lineTo(mx+3,my+3); ocx.fill();
-    ocx.fillStyle='#7a6a5a';
-    ocx.fillRect(mx-1, my, 2, 1);
-    // snow cap
-    ocx.fillStyle='#fff';
-    ocx.fillRect(mx-1, my-2, 2, 1);
-    ocx.fillRect(mx-2, my-1, 1, 1);
+    drawMountain(ocx, mx, my);
   }
 
-  // Appalachian mounds (smaller, rounded)
-  const apps = [[235,108],[245,118],[252,128],[240,98],[248,138],[256,124]];
+  // ── APPALACHIANS — softer rounded mounds ──
+  const apps = [[232,98],[240,104],[247,110],[253,118],[258,125],[262,132],[244,118],[251,128],[235,112],[256,140]];
   for (const [mx,my] of apps){
     if (!pointInPoly(mx, my, US_POLY)) continue;
-    ocx.fillStyle='#4a6a4a';
-    ocx.beginPath(); ocx.moveTo(mx-3,my+2); ocx.lineTo(mx,my-2); ocx.lineTo(mx+3,my+2); ocx.fill();
-    ocx.fillStyle='#3a5a3a';
-    ocx.fillRect(mx-1, my-1, 2, 1);
+    drawHill(ocx, mx, my);
   }
 
-  // Cactus dots in SW desert
-  for (let i=0; i<10; i++){
-    const cx = 75 + i*6, cy = 158 + (i%3)*3;
+  // ── SIERRA NEVADA / CASCADES (west of Rockies, on coast side) ──
+  const sierras = [[44,72],[48,82],[46,94],[50,106],[52,118],[55,130]];
+  for (const [mx,my] of sierras){
+    if (!pointInPoly(mx, my, US_POLY)) continue;
+    drawMountain(ocx, mx, my);
+  }
+
+  // ── PINE FORESTS — multi-pixel pine sprites ──
+  // PNW
+  const pnwTrees = [];
+  for (let i=0;i<14;i++) pnwTrees.push([35+(i%3)*4, 66+i*4]);
+  // Maine
+  for (let i=0;i<10;i++) pnwTrees.push([278+(i%3)*3, 50+i*3]);
+  // Northern forests
+  for (let i=0;i<22;i++) pnwTrees.push([170+i*4, 70+(i%2)*4]);
+  for (const [tx,ty] of pnwTrees){
+    if (pointInPoly(tx, ty, US_POLY)) drawPine(ocx, tx, ty);
+  }
+
+  // ── EASTERN DECIDUOUS FOREST — oak/maple style trees ──
+  const eastTrees = [];
+  for (let i=0;i<18;i++) eastTrees.push([200+i*4, 95+(i%3)*4]);
+  for (let i=0;i<12;i++) eastTrees.push([220+i*4, 120+(i%2)*5]);
+  for (const [tx,ty] of eastTrees){
+    if (pointInPoly(tx, ty, US_POLY)) drawDeciduous(ocx, tx, ty);
+  }
+
+  // ── SOUTHWEST DESERT — cacti, mesas, sand dunes ──
+  for (let i=0; i<14; i++){
+    const cx = 75 + i*5 + (i%2)*2, cy = 154 + (i%3)*4;
+    if (pointInPoly(cx, cy, US_POLY) && pointInPoly(cx, cy+3, US_POLY)) {
+      drawCactus(ocx, cx, cy);
+    }
+  }
+  // mesas
+  const mesas = [[88,160],[105,158],[120,162]];
+  for (const [mx,my] of mesas){
+    if (pointInPoly(mx, my, US_POLY)) drawMesa(ocx, mx, my);
+  }
+
+  // ── GREAT PLAINS — grass/wheat tufts ──
+  for (let i=0;i<28;i++){
+    const gx = 110 + (i*9 + i*i*3)%56, gy = 78 + (i*7)%66;
+    if (pointInPoly(gx, gy, US_POLY)) drawGrassTuft(ocx, gx, gy);
+  }
+
+  // ── LOUISIANA BAYOU — cypress + water patches ──
+  for (let i=0;i<6;i++){
+    const bx = 184+i*2, by = 162+(i%2)*2;
+    if (pointInPoly(bx, by, US_POLY)){
+      P(bx, by, PAL.bayouLite);
+      P(bx+1, by, PAL.bayouRefl);
+      P(bx, by+1, PAL.bayouDark);
+    }
+  }
+  // cypress dots
+  for (let i=0;i<4;i++){
+    const cx = 185+i*3, cy = 160-(i%2)*2;
     if (pointInPoly(cx, cy, US_POLY)){
-      ocx.fillStyle='#3a6a3a';
-      ocx.fillRect(cx, cy-1, 1, 3);
-      ocx.fillRect(cx-1, cy, 1, 1);
+      P(cx, cy, PAL.pineDark);
+      P(cx, cy+1, PAL.trunk);
     }
   }
 
-  // Pine clusters in PNW
-  for (let i=0; i<6; i++){
-    const tx = 38 + (i%2)*3, ty = 72 + i*5;
-    if (pointInPoly(tx, ty, US_POLY)){
-      ocx.fillStyle='#1a3a2a';
-      ocx.beginPath(); ocx.moveTo(tx-2,ty+2); ocx.lineTo(tx,ty-2); ocx.lineTo(tx+2,ty+2); ocx.fill();
+  // ── FLORIDA SWAMP — denser water patches + palms ──
+  for (let i=0;i<8;i++){
+    const sx = 245+(i%2)*5, sy = 178+i*3;
+    if (pointInPoly(sx, sy, US_POLY) && pointInPoly(sx+1, sy, US_POLY)){
+      P(sx, sy, PAL.shal);
+      P(sx+1, sy, PAL.mid);
     }
   }
-
-  // Florida swamp gators
-  ocx.fillStyle='#2a5a3a';
-  for (let i=0; i<8; i++){
-    const x=235+(i%2)*4, y=180+i*3;
-    if (pointInPoly(x, y, US_POLY)) ocx.fillRect(x, y, 2, 1);
+  // palms
+  for (let i=0;i<5;i++){
+    const px_ = 242+i*2, py_ = 188+i*3;
+    if (pointInPoly(px_, py_, US_POLY)) drawPalm(ocx, px_, py_);
   }
+
+  // ── COMPASS ROSE in NW corner (decorative) ──
+  drawCompass(ocx, 18, 50);
 
   mapBaked = oc;
+}
+
+/* ─── Map sprite primitives ─── */
+function strokePath(cx, a, b, color){
+  const steps = Math.max(2, Math.hypot(b[0]-a[0], b[1]-a[1])|0);
+  for (let s=0; s<=steps; s++){
+    const t=s/steps;
+    const x=(a[0]+(b[0]-a[0])*t)|0, y=(a[1]+(b[1]-a[1])*t)|0;
+    cx.fillStyle=color; cx.fillRect(x, y, 1, 1);
+  }
+}
+function drawMountain(cx, x, y){
+  // 7px wide x 8px tall, with shadow, lit, snow cap
+  // shadow side (right)
+  cx.fillStyle = PAL.rockShdw;
+  cx.fillRect(x,   y-1, 4, 1);
+  cx.fillRect(x-1, y,   6, 1);
+  cx.fillRect(x-2, y+1, 8, 1);
+  cx.fillRect(x-3, y+2, 9, 1);
+  // lit side (left)
+  cx.fillStyle = PAL.rockMid;
+  cx.fillRect(x-2, y+1, 4, 1);
+  cx.fillRect(x-3, y+2, 5, 1);
+  // base
+  cx.fillStyle = PAL.rockDark;
+  cx.fillRect(x-3, y+3, 9, 2);
+  // highlight stripe
+  cx.fillStyle = PAL.rockLite;
+  cx.fillRect(x-2, y+2, 2, 1);
+  cx.fillRect(x-1, y+1, 1, 1);
+  // snow cap
+  cx.fillStyle = PAL.snow;
+  cx.fillRect(x, y-2, 2, 1);
+  cx.fillRect(x-1, y-1, 4, 1);
+  cx.fillStyle = PAL.snowShdw;
+  cx.fillRect(x+2, y-1, 1, 1);
+  cx.fillRect(x+1, y, 2, 1);
+  // peak highlight
+  cx.fillStyle = PAL.snowHi;
+  cx.fillRect(x, y-2, 1, 1);
+}
+function drawHill(cx, x, y){
+  cx.fillStyle = PAL.appShdw;
+  cx.fillRect(x-3, y+1, 7, 2);
+  cx.fillStyle = PAL.appMid;
+  cx.fillRect(x-2, y, 5, 1);
+  cx.fillRect(x-3, y+1, 7, 1);
+  cx.fillStyle = PAL.appLite;
+  cx.fillRect(x-1, y-1, 3, 1);
+  cx.fillRect(x-2, y, 3, 1);
+}
+function drawPine(cx, x, y){
+  // 3px wide x 4px tall pine + trunk
+  cx.fillStyle = PAL.pineShdw;
+  cx.fillRect(x-2, y+2, 5, 1);
+  cx.fillStyle = PAL.pineDark;
+  cx.fillRect(x-1, y, 3, 1);
+  cx.fillRect(x-2, y+1, 5, 1);
+  cx.fillStyle = PAL.pineMid;
+  cx.fillRect(x, y, 2, 1);
+  cx.fillRect(x-1, y+1, 3, 1);
+  cx.fillStyle = PAL.pineLite;
+  cx.fillRect(x, y, 1, 1);
+  cx.fillStyle = PAL.trunk;
+  cx.fillRect(x, y+3, 1, 1);
+}
+function drawDeciduous(cx, x, y){
+  // 3px wide rounded blob with shading
+  cx.fillStyle = PAL.appShdw;
+  cx.fillRect(x-1, y+1, 3, 1);
+  cx.fillStyle = PAL.appMid;
+  cx.fillRect(x-1, y, 3, 1);
+  cx.fillRect(x, y-1, 2, 1);
+  cx.fillStyle = PAL.appLite;
+  cx.fillRect(x, y-1, 1, 1);
+  cx.fillStyle = PAL.trunk;
+  cx.fillRect(x, y+2, 1, 1);
+}
+function drawCactus(cx, x, y){
+  cx.fillStyle = PAL.cactus;
+  cx.fillRect(x, y, 1, 4);
+  cx.fillRect(x-1, y+1, 1, 2); // left arm
+  cx.fillRect(x+1, y, 1, 2);   // right arm
+  cx.fillStyle = PAL.cactusLite;
+  cx.fillRect(x, y, 1, 1);
+  cx.fillRect(x+1, y, 1, 1);
+  // tiny flower
+  if (((x+y)|0)%5===0){ cx.fillStyle = PAL.cactusFl; cx.fillRect(x, y-1, 1, 1); }
+}
+function drawMesa(cx, x, y){
+  cx.fillStyle = PAL.sandShdw;
+  cx.fillRect(x-3, y+1, 7, 2);
+  cx.fillStyle = PAL.sand;
+  cx.fillRect(x-3, y, 7, 1);
+  cx.fillRect(x-2, y-1, 5, 1);
+  cx.fillStyle = PAL.sandLite;
+  cx.fillRect(x-2, y-1, 5, 1);
+  cx.fillStyle = PAL.sandHi;
+  cx.fillRect(x-1, y-1, 2, 1);
+}
+function drawGrassTuft(cx, x, y){
+  cx.fillStyle = PAL.wheat;
+  cx.fillRect(x, y, 1, 1);
+  cx.fillStyle = PAL.wheatLite;
+  cx.fillRect(x+1, y, 1, 1);
+  cx.fillStyle = PAL.wheatShdw;
+  cx.fillRect(x, y+1, 1, 1);
+}
+function drawPalm(cx, x, y){
+  cx.fillStyle = PAL.trunk;
+  cx.fillRect(x, y+1, 1, 2);
+  cx.fillStyle = PAL.pineMid;
+  cx.fillRect(x-1, y, 3, 1);
+  cx.fillStyle = PAL.pineLite;
+  cx.fillRect(x-2, y, 1, 1);
+  cx.fillRect(x+2, y, 1, 1);
+}
+// Themed city icons drawn on the main canvas at the marker location
+function drawCityIcon(id, x, y){
+  // shadow under icon
+  ctx.fillStyle='rgba(0,0,0,0.45)';
+  ctx.fillRect(x-3, y+4, 7, 1);
+  if (id === 'FL'){
+    // palm tree on a sandy isle
+    rect(x-4, y+3, 9, 2, '#e8b060'); // sand
+    rect(x-1, y-1, 1, 4, '#5a3a1a'); // trunk
+    rect(x-1, y+3, 1, 1, '#3a2010');
+    // fronds
+    rect(x-3, y-2, 7, 1, '#2a6a2a');
+    rect(x-2, y-3, 5, 1, '#3a7a3a');
+    px(x-4, y-1, '#2a6a2a'); px(x+3, y-1, '#2a6a2a');
+    px(x-1, y-4, '#4a8a3a');
+    // coconut
+    px(x, y-1, '#1a1a1a');
+  } else if (id === 'TN'){
+    // guitar/music note (Nashville)
+    rect(x-2, y-3, 1, 6, '#ffcd2a'); // staff
+    rect(x-3, y-3, 4, 1, '#ffcd2a'); // flag
+    rect(x-3, y-2, 3, 1, '#a07810');
+    // note head
+    rect(x-4, y+1, 3, 2, '#000');
+    rect(x-4, y+1, 3, 1, '#3a3a3a');
+    px(x-3, y+2, '#fff');
+  } else if (id === 'LA'){
+    // fleur-de-lis (purple+gold)
+    rect(x-2, y-3, 1, 1, '#ffcd2a');
+    rect(x, y-3, 1, 1, '#ffcd2a');
+    rect(x-1, y-2, 1, 1, '#ffcd2a');
+    rect(x-3, y-1, 5, 1, '#a02aff');
+    rect(x-1, y, 1, 4, '#a02aff');
+    rect(x-2, y, 1, 2, '#a02aff');
+    rect(x, y, 1, 2, '#a02aff');
+    rect(x-3, y+3, 5, 1, '#5a0a8a');
+    px(x-1, y, '#e0a8ff');
+  } else if (id === 'TX'){
+    // longhorn skull
+    rect(x-1, y, 3, 3, '#f0e0c0'); // skull
+    rect(x-1, y, 3, 1, '#fff8d0');
+    px(x, y+1, '#1a1a1a'); // eye
+    px(x+1, y+1, '#1a1a1a'); // eye
+    // horns
+    rect(x-4, y, 3, 1, '#f0e0c0');
+    rect(x+2, y, 3, 1, '#f0e0c0');
+    rect(x-4, y-1, 1, 1, '#d0c0a0');
+    rect(x+4, y-1, 1, 1, '#d0c0a0');
+    // jaw
+    rect(x, y+3, 1, 1, '#a89070');
+  } else if (id === 'CO'){
+    // snowy mountain peak
+    rect(x-3, y+2, 7, 2, '#5a4a3a'); // base
+    rect(x-3, y+2, 7, 1, '#7a6a5a');
+    // mountain triangle
+    ctx.fillStyle='#5a4a3a';
+    ctx.beginPath(); ctx.moveTo(x-3,y+3); ctx.lineTo(x,y-3); ctx.lineTo(x+3,y+3); ctx.fill();
+    ctx.fillStyle='#7a6a5a';
+    ctx.fillRect(x-1, y, 2, 3);
+    // snow cap
+    ctx.fillStyle='#fff';
+    ctx.fillRect(x, y-3, 1, 1);
+    ctx.fillRect(x-1, y-2, 3, 1);
+    ctx.fillRect(x-2, y-1, 5, 1);
+    ctx.fillStyle='#c8d4d8';
+    px(x+2, y-1, '#c8d4d8');
+  } else if (id === 'CA'){
+    // Hollywood star (5-point gold star)
+    ctx.fillStyle='#ffcd2a';
+    // diamond + points
+    rect(x-1, y-3, 3, 7, '#ffcd2a');
+    rect(x-3, y-1, 7, 3, '#ffcd2a');
+    px(x-2, y-2, '#ffcd2a'); px(x+2, y-2, '#ffcd2a');
+    px(x-2, y+2, '#ffcd2a'); px(x+2, y+2, '#ffcd2a');
+    // outline
+    rect(x, y-3, 1, 1, '#fff8a0');
+    rect(x-1, y, 1, 1, '#a07810');
+    rect(x+1, y, 1, 1, '#a07810');
+    // center sparkle
+    px(x, y, '#fff');
+  }
+}
+
+function drawCompass(cx, x, y){
+  cx.fillStyle = 'rgba(255,205,42,0.55)';
+  cx.fillRect(x-1, y-5, 2, 11);
+  cx.fillRect(x-5, y-1, 11, 2);
+  cx.fillStyle = 'rgba(255,255,255,0.7)';
+  cx.fillRect(x, y-5, 1, 5);   // N highlight
+  cx.fillRect(x-5, y, 5, 1);   // W highlight
+  // N letter
+  cx.fillStyle = '#ffcd2a';
+  cx.fillRect(x-1, y-8, 1, 2);
+  cx.fillRect(x, y-7, 1, 1);
+  cx.fillRect(x+1, y-8, 1, 2);
+}
+
+// Biome painter — returns color or null
+function paintBiome(x, y, n){
+  // Florida swamp peninsula
+  if (x>=232 && y>=170){
+    if (n<2) return PAL.bayouDark;
+    if (n<6) return PAL.bayou;
+    if (n<10) return PAL.bayouLite;
+    return PAL.grass1;
+  }
+  // Florida panhandle / Gulf coast forest
+  if (x>=200 && x<232 && y>=148){
+    if (n<3) return PAL.pineDark;
+    if (n<8) return PAL.pineMid;
+    return PAL.grass2;
+  }
+  // Louisiana bayou
+  if (x>=180 && x<200 && y>=152){
+    if (n<3) return PAL.bayouDark;
+    if (n<7) return PAL.bayou;
+    return PAL.bayouLite;
+  }
+  // Texas (semi-arid)
+  if (x>=125 && x<180 && y>=148 && y<175){
+    if (n<3) return PAL.sandShdw;
+    if (n<8) return PAL.wheat;
+    return PAL.wheatLite;
+  }
+  // SW Desert
+  if (x>=70 && x<140 && y>=145 && y<170){
+    if (n<3) return PAL.sandShdw;
+    if (n<9) return PAL.sand;
+    if (n<13) return PAL.sandLite;
+    return PAL.sandHi;
+  }
+  // Southern California coast (dry chaparral)
+  if (x<70 && y>=142 && y<168){
+    if (n<3) return PAL.chapShdw;
+    if (n<10) return PAL.chap;
+    return PAL.chapLite;
+  }
+  // Central CA — fertile valley
+  if (x<60 && y>=120 && y<142){
+    if (n<4) return PAL.grass1;
+    if (n<10) return PAL.grass2;
+    return PAL.wheatLite;
+  }
+  // Pacific NW — heavy pine forest
+  if (x<55 && y<120){
+    if (n<3) return PAL.pineShdw;
+    if (n<10) return PAL.pineDark;
+    return PAL.pineMid;
+  }
+  // Rockies — rocky and forested mix
+  if (x>=60 && x<108 && y>=66 && y<150){
+    if (n<2) return PAL.snow;
+    if (n<5) return PAL.rockMid;
+    if (n<8) return PAL.rockDark;
+    if (n<12) return PAL.pineDark;
+    return PAL.pineMid;
+  }
+  // Great Plains
+  if (x>=108 && x<175 && y>=58 && y<148){
+    if (n<3) return PAL.wheatShdw;
+    if (n<10) return PAL.wheat;
+    return PAL.wheatLite;
+  }
+  // Appalachians
+  if (x>=220 && x<268 && y>=88 && y<145){
+    if (n<3) return PAL.appShdw;
+    if (n<10) return PAL.appMid;
+    return PAL.appLite;
+  }
+  // Eastern deciduous forest
+  if (x>=170 && y<145){
+    if (n<3) return PAL.pineShdw;
+    if (n<10) return PAL.pineMid;
+    return PAL.grass2;
+  }
+  // SE coastal plain
+  if (x>=200 && y>=140){
+    if (n<3) return PAL.grass1;
+    if (n<10) return PAL.grass2;
+    return PAL.grass3;
+  }
+  // Northern boreal / Maine
+  if (x>=270 && y<70){
+    if (n<3) return PAL.pineShdw;
+    if (n<10) return PAL.pineDark;
+    return PAL.pineMid;
+  }
+  return null;
 }
 
 /* ───────────────────────── GAME STATE ───────────────────────── */
@@ -1299,35 +1781,58 @@ function drawUSA(){
   text('ATLANTIC', 282, 130, 'rgba(255,255,255,0.45)', 1);
   text('GULF', 175, 195, 'rgba(255,255,255,0.45)', 1);
 
-  // state markers
+  // state markers — themed regional icons
   for (let i=0;i<TOUR.length;i++){
     const s = TOUR[i];
     const done = G.collected.includes(s.animal);
     const cur = i === G.unlocked;
     if (done){
-      // checkmark gem
-      for (let r=4;r>=0;r-=1){
-        rect(s.mx-r-1, s.my-r-1, r*2+3, r*2+3, r%2 ? '#2adc6a' : '#5afca0');
-      }
-      text('V', s.mx-1, s.my-2, '#0a3a1a', 1);
+      // green checkmark pin with shadow
+      ctx.fillStyle='rgba(0,0,0,0.4)';
+      ctx.fillRect(s.mx-3, s.my+3, 6, 1);
+      rect(s.mx-3, s.my-3, 7, 7, '#10401a');
+      rect(s.mx-3, s.my-3, 7, 1, '#3a8a3a');
+      rect(s.mx-2, s.my-2, 5, 5, '#2adc6a');
+      rect(s.mx-2, s.my-2, 5, 1, '#5afca0');
+      // checkmark
+      px(s.mx-1, s.my, '#0a3a1a');
+      px(s.mx, s.my+1, '#0a3a1a');
+      px(s.mx+1, s.my, '#0a3a1a');
+      px(s.mx+2, s.my-1, '#0a3a1a');
     } else if (cur){
-      // pulsing star
-      const pulse = Math.sin(globalT*0.15)*2;
-      ctx.fillStyle = `rgba(255,205,42,${0.3+0.2*Math.sin(globalT*0.1)})`;
-      ctx.fillRect(s.mx-5-pulse, s.my-5-pulse, 11+pulse*2, 11+pulse*2);
-      rect(s.mx-4, s.my-4, 9, 9, '#ffcd2a');
-      rect(s.mx-3, s.my-3, 7, 7, '#ff6a2a');
-      rect(s.mx-2, s.my-2, 5, 5, '#ff2a6d');
-      px(s.mx, s.my, '#fff');
-      // city label above
+      // pulsing glow halo
+      const halo = 0.4 + 0.25*Math.sin(globalT*0.12);
+      ctx.fillStyle = `rgba(255,205,42,${halo*0.4})`;
+      ctx.fillRect(s.mx-9, s.my-9, 19, 19);
+      ctx.fillStyle = `rgba(255,205,42,${halo*0.6})`;
+      ctx.fillRect(s.mx-7, s.my-7, 15, 15);
+      // themed icon
+      drawCityIcon(s.id, s.mx, s.my);
+      // city label banner above
       const lbl = s.city;
       const lw = lbl.length*4;
-      rect(s.mx-lw/2-1, s.my-14, lw+2, 7, 'rgba(0,0,0,0.75)');
-      text(lbl, s.mx-lw/2, s.my-12, '#ffcd2a', 1);
+      const lx = Math.max(2, Math.min(W - lw - 4, s.mx - lw/2));
+      const lby = s.my - 16;
+      rect(lx-2, lby, lw+4, 9, '#1a0830');
+      rect(lx-2, lby, lw+4, 1, '#ffcd2a');
+      rect(lx-2, lby+8, lw+4, 1, '#ffcd2a');
+      text(lbl, lx, lby+2, '#ffcd2a', 1);
+      // pointer triangle from banner to icon
+      px(s.mx, lby+9, '#ffcd2a');
+      px(s.mx-1, lby+9, '#1a0830');
+      px(s.mx+1, lby+9, '#1a0830');
     } else {
+      // locked pin (greyed)
+      ctx.fillStyle='rgba(0,0,0,0.4)';
+      ctx.fillRect(s.mx-2, s.my+3, 5, 1);
+      rect(s.mx-3, s.my-3, 7, 7, '#1a1a1a');
       rect(s.mx-2, s.my-2, 5, 5, '#555');
       rect(s.mx-2, s.my-2, 5, 1, '#777');
-      px(s.mx, s.my-1, '#222');
+      px(s.mx, s.my, '#888');
+      // padlock
+      rect(s.mx-1, s.my-1, 3, 2, '#aaa');
+      px(s.mx, s.my-2, '#aaa');
+      px(s.mx, s.my, '#333');
     }
   }
 
