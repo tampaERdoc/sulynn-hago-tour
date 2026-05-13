@@ -2178,55 +2178,108 @@ function drawLevel(){
   const lv = G.level;
   const s = lv.state;
 
-  // Biome backgrounds (multi-layer with parallax-like depth)
+  // SNES-style multi-band biome palettes (sky top→horizon, ground horizon→foreground)
   const biomes = {
-    swamp:    {sky:['#1a4a3a','#3a7a4a'], ground:['#2a4a2a','#1a3a1a'], accent:'#5a9a4a'},
-    forest:   {sky:['#2a4a5a','#5a7a8a'], ground:['#3a5a3a','#2a4a2a'], accent:'#6a9a4a'},
-    bayou:    {sky:['#2a3a4a','#4a5a7a'], ground:['#2a4040','#1a3030'], accent:'#4a8a6a'},
-    desert:   {sky:['#e8a040','#f0c870'], ground:['#d8a050','#a87040'], accent:'#f0d090'},
-    mountain: {sky:['#5a7aaa','#9acaff'], ground:['#7a8aaa','#5a6a8a'], accent:'#fff'},
+    swamp:    {sky:['#06122a','#0e1c3a','#1a2c4a','#1a3848','#1a3a3a'],
+               ground:['#1a3a20','#142a18','#0e1e12','#08140a'], moonC:'#dde0a8'},
+    forest:   {sky:['#0a1a2a','#1a2a4a','#2a3a5a','#3a4a6a','#3a5a4a'],
+               ground:['#2a4a2a','#1e3a1e','#142a14','#0a1808'], moonC:'#e8e0c0'},
+    bayou:    {sky:['#08182a','#10243a','#1a324a','#1a3848','#283e40'],
+               ground:['#1a3a3a','#142a2a','#0e201e','#081414'], moonC:'#e0e0e0'},
+    desert:   {sky:['#3a1a2a','#7a3a3a','#c87040','#e8a050','#f0c870'],
+               ground:['#c8804a','#a86838','#80502a','#5a3818'], moonC:'#ffd070'},
+    mountain: {sky:['#1a1a3a','#2a2a5a','#4a4a7a','#6a6a9a','#8aaaca'],
+               ground:['#6a7a8a','#4a5a6a','#3a4a5a','#2a3a48'], moonC:'#f0f4ff'},
   };
   const B = biomes[s.biome] || biomes.swamp;
 
-  // sky gradient
-  for (let y=0;y<90;y++){
-    const t = y/90;
-    rect(0, y, W, 1, blendHex(B.sky[0], B.sky[1], t));
+  // ── BANDED SKY with dithered transitions ──
+  const bands = B.sky;
+  const skyH = 95;
+  for (let y=0; y<skyH; y++){
+    const t = (y/skyH) * (bands.length-1);
+    const i = t|0;
+    const f = t - i;
+    const c1 = bands[i], c2 = bands[Math.min(i+1, bands.length-1)];
+    rect(0, y, W, 1, blendHex(c1, c2, f));
   }
-  // ground gradient
-  for (let y=90;y<H;y++){
-    const t = (y-90)/(H-90);
-    rect(0, y, W, 1, blendHex(B.ground[0], B.ground[1], t));
+  // sky dither sprinkle (subtle noise across bands)
+  for (let y=4; y<skyH; y+=2){
+    for (let x=0; x<W; x+=2){
+      const n = noise2(x, y);
+      if (n === 0) px(x, y, 'rgba(255,255,255,0.05)');
+      else if (n === 15) px(x, y, 'rgba(0,0,0,0.1)');
+    }
   }
-  // sun/moon
+  // stars (not for desert)
+  if (s.biome !== 'desert'){
+    for (let i=0; i<40; i++){
+      const sx = (i*97+11)%W, sy = (i*43+5)%55;
+      const tw = ((globalT/12)+i)%30;
+      if (tw > 2) px(sx, sy, '#fff');
+      else if (tw > 1) px(sx, sy, '#88bbff');
+    }
+  }
+
+  // ── DETAILED MOON / SUN ──
   if (s.biome === 'desert'){
-    for (let r=14;r>=0;r-=2){
-      circle(260, 25, r, `rgb(${255-r*4},${220-r*8},${100+r*4})`);
+    // setting sun with glow halo
+    for (let r=18; r>=0; r--){
+      const a = (18-r)/18;
+      ctx.fillStyle = `rgba(255,${180 - r*4},${60 + r*4},${0.08 + a*0.06})`;
+      ctx.beginPath(); ctx.arc(255, 32, r+4, 0, Math.PI*2); ctx.fill();
+    }
+    for (let r=14; r>=0; r--){
+      const t = (14-r)/14;
+      circle(255, 32, r, `rgb(${255-12*t},${190-60*t},${80+40*t})`);
+    }
+    // sun stripes
+    for (let i=0; i<4; i++){
+      rect(243, 36+i*3, 24, 1, 'rgba(40,8,28,0.4)');
     }
   } else {
-    rect(255, 18, 14, 14, '#fff0a0');
-    rect(255, 18, 14, 2, '#fff8d0');
-    px(258, 22, '#e8c890'); px(263, 26, '#e8c890');
+    // moon — round with detail
+    // halo
+    for (let r=14; r>=8; r--){
+      ctx.fillStyle = `rgba(255,250,200,${0.06 + (14-r)*0.02})`;
+      ctx.beginPath(); ctx.arc(265, 28, r, 0, Math.PI*2); ctx.fill();
+    }
+    // moon body
+    circle(265, 28, 8, B.moonC);
+    // shadow side
+    ctx.fillStyle = blendHex(B.moonC, '#000', 0.3);
+    ctx.beginPath(); ctx.arc(267, 30, 7, -Math.PI/2, Math.PI/2); ctx.fill();
+    // craters
+    circle(262, 25, 1, 'rgba(120,120,100,0.6)');
+    circle(266, 30, 1, 'rgba(120,120,100,0.4)');
+    px(269, 26, 'rgba(150,150,130,0.5)');
+    px(263, 31, 'rgba(150,150,130,0.5)');
+    // highlight
+    px(262, 24, '#fff');
   }
 
-  // BIOME-SPECIFIC SCENERY
+  // ── BIOME-SPECIFIC SCENERY ──
   drawBiome(s.biome, lv);
 
-  // bushes (with shadows)
-  for (const b of lv.bushes){
-    const sway = Math.sin(globalT*0.05 + b.seed)*1;
-    shadow(b.x-1, b.y+(b.big?9:7), b.big?12:9, 2, 0.35);
-    const sz = b.big ? 10 : 7;
-    rect(b.x, b.y, sz, sz-2, '#1a4a2a');
-    rect(b.x+1, b.y-1+sway*0.3, sz-2, 3, '#2a6a3a');
-    rect(b.x+2, b.y, sz-4, 2, '#3a8a4a');
-    px(b.x+sz-2, b.y, '#5aaa5a');
-    px(b.x+1, b.y+sz-3, '#1a3a1a');
-    // little flowers
-    if (b.big && (b.seed%3 === 0)){
-      px(b.x+3, b.y, '#ffcd2a');
-      px(b.x+sz-3, b.y+1, '#ff2a6d');
+  // ── GROUND with dithered bands ──
+  // (drawn after biome's distant scenery but before foreground details)
+  const gbands = B.ground;
+  for (let y=95; y<H; y++){
+    const t = (y-95)/(H-95) * (gbands.length-1);
+    const i = t|0;
+    const f = t - i;
+    const c1 = gbands[i], c2 = gbands[Math.min(i+1, gbands.length-1)];
+    // Apply only where biome hasn't already drawn (most of mid/foreground)
+    // Use sparingly via dither — just for ground tint variation
+    for (let x=0; x<W; x++){
+      if (((x+y) % 17) === 0) px(x, y, blendHex(c1, c2, f));
     }
+  }
+
+  // ── BUSHES (improved with proper foliage shape) ──
+  for (const b of lv.bushes){
+    const sway = Math.sin(globalT*0.05 + b.seed)*1|0;
+    drawFoliageBush(b.x, b.y, b.big, sway, b.seed);
   }
 
   // truck (parked, no headlights, no wagon-fill changes)
@@ -2305,142 +2358,647 @@ function drawLevel(){
   }
 }
 
+/* ─── LEVEL SCENE SPRITES ─── */
+function drawFoliageBush(x, y, big, sway, seed){
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.35)';
+  ctx.fillRect(x-1, y+(big?10:8), big?14:10, 2);
+  const w = big ? 12 : 9;
+  const h = big ? 9 : 7;
+  // base (dark)
+  rect(x-1, y+2, w, h-2, '#0a2010');
+  rect(x, y+1, w-2, 1, '#0a2010');
+  rect(x+1, y, w-4, 1, '#0a2010');
+  // mid (sway slightly)
+  rect(x+sway, y+3, w-2, h-3, '#1a4a1a');
+  // light
+  rect(x+1+sway, y+2, w-4, h-5, '#2a6a2a');
+  rect(x+2+sway, y+3, w-6, 1, '#3a8a3a');
+  // highlight specks
+  if (big){
+    px(x+3+sway, y+3, '#4a9a3a');
+    px(x+7+sway, y+4, '#4a9a3a');
+  }
+  px(x+sway, y+1, '#2a6a2a'); // edge tuft
+  px(x+w-1+sway, y+1, '#2a6a2a');
+  // flowers
+  if (big && (seed%3===0)){
+    px(x+3, y+1, '#ffcd2a');
+    px(x+w-3, y+2, '#ff2a6d');
+    px(x+w-3, y+1, '#ffaaca');
+  }
+  if (seed%5===0){
+    px(x+5, y, '#ff80a0');
+  }
+}
+
+function drawCypress(x, y){
+  // x = horizontal center, y = top of canopy. Trunk extends down ~50px from canopy bottom.
+  // === FRONDS — 5 layered triangles getting wider going down ===
+  const layers = [
+    {dy: 0,  w: 6,  d:'#0a2010', m:'#1a4a18', h:'#3a7028'},
+    {dy: 5,  w: 9,  d:'#0a2010', m:'#1a4a18', h:'#3a7028'},
+    {dy: 11, w: 13, d:'#08200a', m:'#1a4a1c', h:'#2a6a20'},
+    {dy: 17, w: 16, d:'#08200a', m:'#143818', h:'#2a5a20'},
+    {dy: 22, w: 14, d:'#061608', m:'#102e14', h:'#1e4218'},
+  ];
+  for (const l of layers){
+    const cy = y + l.dy;
+    // dark shell
+    ctx.fillStyle = l.d;
+    ctx.beginPath();
+    ctx.moveTo(x-l.w, cy+5); ctx.lineTo(x, cy); ctx.lineTo(x+l.w, cy+5);
+    ctx.fill();
+    // mid
+    ctx.fillStyle = l.m;
+    ctx.beginPath();
+    ctx.moveTo(x-l.w+2, cy+5); ctx.lineTo(x, cy+1); ctx.lineTo(x+l.w-2, cy+5);
+    ctx.fill();
+    // lit side highlight (left)
+    ctx.fillStyle = l.h;
+    ctx.beginPath();
+    ctx.moveTo(x-l.w+1, cy+4); ctx.lineTo(x-1, cy+1); ctx.lineTo(x, cy+3);
+    ctx.fill();
+    // little spike points on rim
+    for (let i=-l.w+1; i<=l.w-1; i+=3){
+      px(x+i, cy+5, l.m);
+    }
+  }
+  // === TRUNK ===
+  const tBase = y + 28;
+  for (let ty=0; ty<26; ty++){
+    rect(x-2, tBase+ty, 4, 1, '#3a1f10');
+    rect(x-2, tBase+ty, 1, 1, '#5a3018');
+    rect(x+1, tBase+ty, 1, 1, '#1a0c05');
+    // bark grooves
+    if (ty%4===0) px(x-1, tBase+ty, '#2a1408');
+    if (ty%5===2) px(x, tBase+ty, '#1a0c05');
+  }
+  // trunk base flare (roots)
+  rect(x-4, tBase+24, 9, 2, '#3a1f10');
+  rect(x-4, tBase+24, 1, 2, '#5a3018');
+  rect(x+4, tBase+24, 1, 2, '#1a0c05');
+  rect(x-4, tBase+25, 9, 1, '#1a0c05');
+
+  // === HANGING SPANISH MOSS ===
+  const mossXs = [-12, -8, -4, 1, 5, 10, 13];
+  for (const mx of mossXs){
+    const wob = Math.sin(globalT*0.03 + mx*0.7)*1;
+    const baseY = y + 24;
+    const len = 6 + ((Math.abs(mx)*3 + mx*mx)%6);
+    for (let i=0; i<len; i++){
+      const c = (i % 4 === 0) ? '#8aaa5a' : (i % 3 === 0) ? '#6a9a4a' : '#4a7a2a';
+      px(x+mx+(wob*(i/len))|0, baseY+i, c);
+    }
+    px(x+mx+wob|0, baseY+len, '#3a6a1a');
+  }
+}
+
+function drawCypressKnee(x, y){
+  rect(x-1, y, 3, 6, '#3a1f10');
+  px(x-1, y, '#5a3018');
+  px(x+1, y, '#1a0c05');
+  px(x+1, y+5, '#0a0608');
+  // moss tuft on top
+  px(x, y-1, '#4a8a2a');
+  px(x-1, y, '#3a6a1a');
+}
+
+function drawCattail(x, y, t){
+  const sway = Math.sin(t*0.04 + x*0.1)*1;
+  // stem
+  for (let i=0; i<10; i++){
+    const wob = sway*(i/10);
+    px(x+wob|0, y-i, i%3===0 ? '#1a3a18' : '#3a6a28');
+  }
+  // long leaf
+  for (let i=0; i<7; i++){
+    px(x-2+(sway*0.5*i/7)|0, y-i-2, '#2a5a20');
+  }
+  for (let i=0; i<5; i++){
+    px(x+3+(sway*0.4*i/5)|0, y-i-1, '#3a7028');
+  }
+  // brown cattail flower
+  rect(x+sway|0, y-13, 2, 5, '#4a2810');
+  px(x+sway|0, y-13, '#6a3a18');
+  px(x+1+sway|0, y-9, '#6a3a18');
+  // little fuzz at top
+  px(x+sway|0, y-14, '#8a5028');
+}
+
+function drawWaterPool(x, y, w, h, t){
+  // pool base
+  rect(x, y, w, h, '#0e2438');
+  // depth shadow at top edge
+  rect(x, y, w, 2, '#06182a');
+  // floor highlight near bottom
+  rect(x, y+h-1, w, 1, '#1a3a4a');
+  // shore edge
+  rect(x-1, y, 1, h, '#0a1a08');
+  rect(x+w, y, 1, h, '#0a1a08');
+
+  // animated ripples (sin wave bands)
+  for (let r=0; r<3; r++){
+    const ry = y + 2 + r*3;
+    for (let xi=0; xi<w; xi+=2){
+      const wob = Math.sin((t*0.08 + xi*0.25 + r*1.5)) * 1;
+      if (wob > 0.3) px(x+xi, ry+(wob|0), '#3a6a8a');
+      if (wob > 0.7) px(x+xi+1, ry+(wob|0), '#5a8aaa');
+    }
+  }
+  // surface glints (animated)
+  for (let i=0; i<4; i++){
+    const sx = x + 4 + ((i*11 + (t/8|0))%(w-8));
+    const sy = y + 3 + (i%2)*4;
+    rect(sx, sy, 3, 1, '#7aaaca');
+    px(sx+1, sy+1, '#5a8aaa');
+  }
+}
+
+function drawLilyPad(x, y, flowered){
+  // round flat pad with notch
+  rect(x-3, y, 7, 1, '#2a6a28');
+  rect(x-3, y+1, 7, 2, '#3a8a30');
+  rect(x-3, y+3, 7, 1, '#1a4a18');
+  rect(x-2, y, 1, 3, '#1a4a18'); // notch / radial line
+  px(x, y, '#1a4a18');
+  // veins
+  px(x-2, y+2, '#5aaa3a');
+  px(x+2, y+2, '#5aaa3a');
+  if (flowered){
+    // water lily flower (multi-petal)
+    rect(x, y-2, 2, 1, '#ffaaca');
+    rect(x-1, y-1, 4, 1, '#ffaaca');
+    px(x, y-1, '#fff');
+    px(x+1, y-1, '#fff');
+    px(x, y-3, '#ff7090');
+  }
+}
+
+function drawLog(x, y){
+  rect(x, y, 16, 4, '#3a1f10');
+  rect(x, y, 16, 1, '#5a3018');
+  rect(x, y+3, 16, 1, '#1a0c05');
+  // tree-ring ends
+  px(x, y+1, '#2a1408'); px(x, y+2, '#2a1408');
+  px(x+15, y+1, '#2a1408'); px(x+15, y+2, '#2a1408');
+  px(x+14, y+2, '#5a3018');
+  // moss on top
+  rect(x+5, y, 2, 1, '#4a8a2a');
+  rect(x+9, y, 3, 1, '#3a7a1a');
+  px(x+5, y-1, '#5a9a3a');
+}
+
+function drawPineTreeBig(x, y){
+  // tall conifer with trunk and 4 layered canopy tiers
+  // canopy tiers (top to bottom, widening)
+  const tiers = [
+    {dy: 0,  w: 4,  d:'#0a2a1a', m:'#1a4a2a', h:'#2a6a3a'},
+    {dy: 6,  w: 8,  d:'#0a2a1a', m:'#1a4a2a', h:'#2a6a3a'},
+    {dy: 14, w: 12, d:'#082818', m:'#1a4222', h:'#286830'},
+    {dy: 22, w: 16, d:'#062010', m:'#143a1c', h:'#205828'},
+  ];
+  for (const t of tiers){
+    const cy = y + t.dy;
+    ctx.fillStyle = t.d;
+    ctx.beginPath();
+    ctx.moveTo(x-t.w, cy+8); ctx.lineTo(x, cy); ctx.lineTo(x+t.w, cy+8); ctx.fill();
+    ctx.fillStyle = t.m;
+    ctx.beginPath();
+    ctx.moveTo(x-t.w+2, cy+8); ctx.lineTo(x, cy+2); ctx.lineTo(x+t.w-2, cy+8); ctx.fill();
+    ctx.fillStyle = t.h;
+    ctx.beginPath();
+    ctx.moveTo(x-t.w+1, cy+7); ctx.lineTo(x-1, cy+2); ctx.lineTo(x+1, cy+5); ctx.fill();
+  }
+  // trunk
+  const tBase = y + 30;
+  rect(x-1, tBase, 3, 12, '#3a1f10');
+  rect(x-1, tBase, 1, 12, '#5a3018');
+  rect(x+1, tBase, 1, 12, '#1a0c05');
+  for (let i=0; i<3; i++) px(x, tBase+2+i*4, '#2a1408');
+  rect(x-2, tBase+11, 5, 1, '#3a1f10');
+}
+
+function drawDistantTree(x, y, c){
+  // simple silhouette for far background
+  ctx.fillStyle = c;
+  ctx.beginPath();
+  ctx.moveTo(x-5, y+8); ctx.lineTo(x, y); ctx.lineTo(x+5, y+8); ctx.fill();
+  rect(x, y+7, 1, 4, '#0a0a0a');
+}
+
+function drawWillowTree(x, y, t){
+  // trunk
+  rect(x-2, y+18, 4, 30, '#3a1f10');
+  rect(x-2, y+18, 1, 30, '#5a3018');
+  rect(x+1, y+18, 1, 30, '#1a0c05');
+  for (let i=0; i<5; i++) px(x, y+24+i*5, '#2a1408');
+  // canopy mass (light up top)
+  ctx.fillStyle = '#1a3a18';
+  ctx.beginPath(); ctx.arc(x, y+10, 14, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#2a5a28';
+  ctx.beginPath(); ctx.arc(x-2, y+8, 11, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#3a7038';
+  ctx.beginPath(); ctx.arc(x-3, y+6, 5, 0, Math.PI*2); ctx.fill();
+  // WEEPING BRANCHES — long thin strands swaying
+  const strands = [-12,-9,-6,-3,0,3,6,9,12];
+  for (const sx of strands){
+    const sway = Math.sin(t*0.03 + sx*0.4)*1.5;
+    const len = 14 + (Math.abs(sx)%5);
+    for (let i=0; i<len; i++){
+      const wob = sway * (i/len);
+      const c = i%3===0 ? '#3a7028' : i%2===0 ? '#2a5a20' : '#1a3a18';
+      px(x+sx+wob|0, y+18+i, c);
+    }
+    px(x+sx+sway|0, y+18+len, '#5a8a3a'); // tip
+  }
+}
+
+function drawSaguaro(x, y){
+  // tall cactus, with two arms
+  const baseY = y;
+  // main column
+  rect(x-2, baseY-32, 5, 32, '#2a5a28');
+  rect(x-2, baseY-32, 1, 32, '#4a8a3a'); // lit side
+  rect(x+2, baseY-32, 1, 32, '#143a18'); // shadow side
+  // ribs (vertical lines)
+  for (let i=0; i<6; i++){
+    px(x-1, baseY-2-i*5, '#1a4a1c');
+    px(x+1, baseY-4-i*5, '#3a7030');
+  }
+  // top rounded
+  rect(x-1, baseY-34, 3, 2, '#2a5a28');
+  px(x, baseY-35, '#2a5a28');
+  // LEFT arm
+  rect(x-5, baseY-22, 2, 9, '#2a5a28');
+  rect(x-5, baseY-22, 1, 9, '#4a8a3a');
+  rect(x-5, baseY-22, 2, 1, '#2a5a28');
+  rect(x-5, baseY-24, 2, 2, '#2a5a28');
+  px(x-5, baseY-25, '#2a5a28');
+  // RIGHT arm (higher)
+  rect(x+4, baseY-26, 2, 11, '#2a5a28');
+  rect(x+4, baseY-26, 1, 11, '#4a8a3a');
+  rect(x+4, baseY-26, 2, 1, '#2a5a28');
+  rect(x+4, baseY-28, 2, 2, '#2a5a28');
+  px(x+5, baseY-29, '#2a5a28');
+  // spines (white dots)
+  for (let i=0; i<7; i++) px(x, baseY-4-i*5, '#fff8a0');
+  for (let i=0; i<3; i++) px(x-4, baseY-15-i*4, '#fff8a0');
+  for (let i=0; i<3; i++) px(x+5, baseY-18-i*4, '#fff8a0');
+  // flower
+  rect(x, baseY-36, 2, 1, '#ff80a0');
+  px(x, baseY-37, '#ffcdcd');
+}
+
+function drawDuneRow(t){
+  for (let x=0; x<W; x+=24){
+    const w = 28;
+    ctx.fillStyle = '#a86838';
+    ctx.beginPath(); ctx.moveTo(x, 230); ctx.quadraticCurveTo(x+12, 218, x+w, 230); ctx.fill();
+    ctx.fillStyle = '#c88848';
+    ctx.beginPath(); ctx.moveTo(x+2, 230); ctx.quadraticCurveTo(x+12, 220, x+w-2, 230); ctx.fill();
+  }
+  // ripples on sand
+  for (let i=0; i<W; i+=6){
+    const wob = Math.sin((t+i)*0.05)*1|0;
+    px(i, 226+wob, '#8a5028');
+  }
+}
+
+function drawSnowPeak(x, y, h){
+  // base rocky body
+  ctx.fillStyle = '#2a2a4a';
+  ctx.beginPath(); ctx.moveTo(x-h*0.8, y+h); ctx.lineTo(x, y); ctx.lineTo(x+h*0.8, y+h); ctx.fill();
+  // lit face
+  ctx.fillStyle = '#4a4a6a';
+  ctx.beginPath(); ctx.moveTo(x-h*0.5, y+h*0.7); ctx.lineTo(x, y+5); ctx.lineTo(x+h*0.1, y+h*0.7); ctx.fill();
+  // shadow face
+  ctx.fillStyle = '#1a1a3a';
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x+h*0.8, y+h); ctx.lineTo(x+h*0.3, y+h); ctx.fill();
+  // snow cap (jagged)
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(x-h*0.35, y+h*0.45);
+  ctx.lineTo(x-h*0.2, y+h*0.25);
+  ctx.lineTo(x-h*0.1, y+h*0.35);
+  ctx.lineTo(x, y+h*0.05);
+  ctx.lineTo(x+h*0.1, y+h*0.3);
+  ctx.lineTo(x+h*0.2, y+h*0.18);
+  ctx.lineTo(x+h*0.3, y+h*0.42);
+  ctx.lineTo(x+h*0.15, y+h*0.55);
+  ctx.lineTo(x-h*0.15, y+h*0.5);
+  ctx.fill();
+  // snow shadow
+  ctx.fillStyle = '#c8d4e0';
+  ctx.beginPath();
+  ctx.moveTo(x, y+h*0.05); ctx.lineTo(x+h*0.1, y+h*0.3); ctx.lineTo(x+h*0.3, y+h*0.42); ctx.lineTo(x+h*0.15, y+h*0.5); ctx.fill();
+}
+
+function drawForestTree(x, y){
+  // standard pine variant for forest
+  drawPineTreeBig(x, y);
+}
+
+function drawMushroom(x, y){
+  rect(x-1, y-1, 1, 3, '#f0f0e0'); // stalk
+  // cap
+  rect(x-2, y-3, 5, 1, '#a02020');
+  rect(x-3, y-2, 7, 2, '#c02828');
+  px(x-2, y-1, '#fff'); // spot
+  px(x+1, y-2, '#fff');
+  rect(x-3, y, 7, 1, '#7a1010');
+}
+
+function drawFern(x, y, t){
+  // fern frond with multiple leaflets
+  const sway = Math.sin(t*0.04 + x*0.1)*1;
+  // stem
+  for (let i=0; i<6; i++){
+    px(x+(sway*i/6)|0, y-i, '#3a6a2a');
+  }
+  // leaflets
+  for (let i=1; i<6; i++){
+    const sw = sway*(i/6);
+    px(x-i+sw|0, y-i, '#4a8a3a');
+    px(x+i+sw|0, y-i, '#4a8a3a');
+    if (i>2) {
+      px(x-i-1+sw|0, y-i-1, '#3a7028');
+      px(x+i+1+sw|0, y-i-1, '#3a7028');
+    }
+  }
+}
+
 function drawBiome(biome, lv){
   if (biome === 'swamp'){
-    // moss-draped cypress trees (far)
-    for (let i=0;i<4;i++){
-      const tx = 30 + i*80;
-      rect(tx, 30, 5, 65, '#3a2a1a');
-      rect(tx+1, 30, 1, 65, '#5a3a2a');
-      // canopy
-      ctx.fillStyle = '#1a4a1a';
-      ctx.beginPath(); ctx.moveTo(tx-12, 60); ctx.lineTo(tx+2, 20); ctx.lineTo(tx+16, 60); ctx.fill();
-      ctx.fillStyle = '#3a6a3a';
-      ctx.beginPath(); ctx.moveTo(tx-9, 65); ctx.lineTo(tx+2, 35); ctx.lineTo(tx+13, 65); ctx.fill();
-      // hanging moss
-      for (let j=0;j<4;j++) rect(tx-8+j*5, 55+(j%2)*4, 1, 10, '#5a9a5a');
+    // far silhouette tree line
+    for (let i=0; i<10; i++){
+      drawDistantTree(15+i*32, 78, 'rgba(8,16,12,0.85)');
     }
-    // water patches
-    for (let i=0;i<5;i++){
-      const wx = 20 + i*60;
-      rect(wx, 195, 50, 12, '#2a4a6a');
-      rect(wx+2, 197, 46, 1, '#5a8aca');
-      // lily pads
-      if (i%2) rect(wx+15, 200, 6, 3, '#3a8a3a');
+    // mist band along horizon
+    for (let x=0; x<W; x+=2){
+      const m = Math.sin((globalT+x*4)*0.02);
+      if (m > 0.4) px(x, 92, 'rgba(180,200,180,0.4)');
+      if (m > 0.6) px(x, 93, 'rgba(160,180,160,0.3)');
     }
-    // fireflies
-    if ((globalT>>3)%4 === 0){
-      for (let i=0;i<6;i++){
-        const fx = (i*47 + globalT)%W;
-        const fy = 40 + (i*23 + globalT/3)%80;
-        px(fx, fy, '#ffd966');
+    // ground base — muddy moss with dithering
+    for (let y=95; y<H; y++){
+      for (let x=0; x<W; x+=1){
+        const n = noise2(x, y);
+        let c;
+        if (n < 2) c = '#08180a';
+        else if (n < 5) c = '#102a14';
+        else if (n < 9) c = '#1a3a1c';
+        else if (n < 13) c = '#264028';
+        else c = '#305030';
+        px(x, y, c);
+      }
+    }
+    // 4 cypress trees at varied y
+    drawCypress(45, 30);
+    drawCypress(125, 22);
+    drawCypress(210, 32);
+    drawCypress(285, 26);
+    // cypress knees scattered on the ground
+    const knees = [[35,158],[78,168],[150,172],[195,162],[245,170],[295,166],[110,180],[265,184]];
+    for (const [kx,ky] of knees) drawCypressKnee(kx, ky);
+    // cattails growing in marshy patches
+    for (let i=0; i<14; i++){
+      drawCattail(15+i*22+(i%2)*6, 195+(i%3)*5, globalT);
+    }
+    // 3 water pools at varying y
+    drawWaterPool(20, 198, 70, 14, globalT);
+    drawWaterPool(115, 205, 90, 15, globalT);
+    drawWaterPool(220, 200, 80, 14, globalT);
+    // lily pads on pools
+    drawLilyPad(50, 202, true);
+    drawLilyPad(80, 207, false);
+    drawLilyPad(140, 211, true);
+    drawLilyPad(180, 209, false);
+    drawLilyPad(250, 206, true);
+    drawLilyPad(280, 211, false);
+    // floating logs
+    drawLog(150, 215);
+    // fireflies with glow
+    for (let i=0; i<14; i++){
+      const fx = (i*47 + globalT/2)%W;
+      const fy = 35 + ((i*23 + globalT/4)%110);
+      const phase = ((globalT/6 + i*3)|0) % 8;
+      if (phase < 5){
+        // glow
+        ctx.fillStyle = 'rgba(255,220,100,0.25)';
+        ctx.fillRect(fx-1, fy-1, 3, 3);
+        px(fx, fy, '#fff8a0');
       }
     }
   }
   else if (biome === 'forest'){
-    // pine trees
-    for (let i=0;i<7;i++){
-      const tx = 20 + i*45 + (i%2)*15;
-      const ty = 45 + (i%2)*10;
-      rect(tx, ty+25, 3, 25, '#3a2a1a');
-      ctx.fillStyle = '#1a4a2a';
-      ctx.beginPath(); ctx.moveTo(tx-10, ty+35); ctx.lineTo(tx+1, ty); ctx.lineTo(tx+12, ty+35); ctx.fill();
-      ctx.fillStyle = '#2a6a3a';
-      ctx.beginPath(); ctx.moveTo(tx-7, ty+30); ctx.lineTo(tx+1, ty+8); ctx.lineTo(tx+9, ty+30); ctx.fill();
-      ctx.fillStyle = '#3a8a4a';
-      ctx.beginPath(); ctx.moveTo(tx-4, ty+25); ctx.lineTo(tx+1, ty+16); ctx.lineTo(tx+6, ty+25); ctx.fill();
+    // distant silhouette tree wall
+    for (let i=0; i<12; i++){
+      drawDistantTree(10+i*28, 76, 'rgba(20,30,28,0.85)');
     }
-    // forest floor leaves
-    for (let i=0;i<15;i++){
-      const lx = (i*43)%W, ly = 200 + (i%3)*5;
-      px(lx, ly, '#a85020');
+    // light shafts
+    for (let i=0; i<3; i++){
+      const sx = 80 + i*100;
+      ctx.fillStyle = 'rgba(180,200,140,0.06)';
+      ctx.beginPath();
+      ctx.moveTo(sx, 30); ctx.lineTo(sx-30, 200); ctx.lineTo(sx+30, 200); ctx.fill();
     }
-  }
-  else if (biome === 'bayou'){
-    // willow trees in mist
-    for (let i=0;i<3;i++){
-      const tx = 50 + i*100;
-      rect(tx, 50, 4, 50, '#2a1a0a');
-      // weeping branches
-      for (let j=0;j<8;j++){
-        rect(tx-12+j*3, 40+(j%3)*4, 2, 20+(j%2)*5, '#3a5a3a');
-        px(tx-12+j*3, 60+(j%2)*4, '#5a8a5a');
+    // ground — pine needles and leaf litter
+    for (let y=95; y<H; y++){
+      for (let x=0; x<W; x++){
+        const n = noise2(x, y);
+        let c;
+        if (n < 3) c = '#0a1808';
+        else if (n < 8) c = '#1a3018';
+        else if (n < 12) c = '#2a4a26';
+        else c = '#3a5e34';
+        px(x, y, c);
       }
     }
-    // mist
-    for (let i=0;i<W;i+=4){
-      const m = Math.sin((globalT+i)*0.03)*2;
-      rect(i, 130+m, 4, 1, 'rgba(255,255,255,0.1)');
+    // fallen leaves (orange/red dots)
+    for (let i=0; i<25; i++){
+      const lx = ((i*73+11)%W), ly = 100+((i*47)%130);
+      const lc = ['#a85020','#c87030','#8a4018'][i%3];
+      rect(lx, ly, 2, 1, lc);
+      px(lx+1, ly, blendHex(lc,'#fff',0.3));
     }
-    // bayou water
-    rect(0, 200, W, 40, '#1a3a3a');
-    for (let i=0;i<W;i+=8){
-      const wv = Math.sin((globalT+i)*0.08)*1;
-      rect(i, 205+wv, 4, 1, '#3a6a5a');
+    // big forest pines
+    drawPineTreeBig(35, 30);
+    drawPineTreeBig(105, 24);
+    drawPineTreeBig(175, 30);
+    drawPineTreeBig(250, 26);
+    drawPineTreeBig(305, 32);
+    // ferns at base of trees
+    drawFern(60, 110, globalT); drawFern(140, 115, globalT);
+    drawFern(210, 112, globalT); drawFern(280, 116, globalT);
+    drawFern(80, 175, globalT); drawFern(195, 180, globalT);
+    // mushrooms
+    drawMushroom(75, 165); drawMushroom(185, 170); drawMushroom(245, 162);
+  }
+  else if (biome === 'bayou'){
+    // mist heavy
+    for (let i=0; i<W; i+=2){
+      const m = Math.sin((globalT+i)*0.03);
+      if (m > 0.3) px(i, 90+(m*3|0), 'rgba(200,210,200,0.4)');
+      if (m > 0.6) px(i, 130+(m*4|0), 'rgba(180,200,180,0.3)');
+    }
+    // distant silhouettes
+    for (let i=0; i<10; i++){
+      drawDistantTree(15+i*32, 80, 'rgba(20,40,40,0.7)');
+    }
+    // muddy ground
+    for (let y=95; y<H; y++){
+      for (let x=0; x<W; x++){
+        const n = noise2(x, y);
+        let c;
+        if (n < 2) c = '#0a1818';
+        else if (n < 6) c = '#142a28';
+        else if (n < 10) c = '#1c3838';
+        else c = '#284a48';
+        px(x, y, c);
+      }
+    }
+    // willow trees (weeping)
+    drawWillowTree(60, 30, globalT);
+    drawWillowTree(165, 24, globalT);
+    drawWillowTree(260, 30, globalT);
+    // bayou water (large area)
+    drawWaterPool(0, 190, W, 40, globalT);
+    // cattails along edge
+    for (let i=0; i<16; i++){
+      drawCattail(10+i*20, 192, globalT);
+    }
+    // lily pads
+    for (let i=0; i<7; i++){
+      drawLilyPad(30+i*45, 208+((i*7)%14), i%2===0);
+    }
+    // floating log
+    drawLog(95, 215);
+    drawLog(220, 218);
+    // dragonflies (animated)
+    for (let i=0; i<3; i++){
+      const dx = ((i*97 + globalT/2)%W);
+      const dy = 100 + Math.sin((globalT+i*30)*0.04)*8;
+      rect(dx-1, dy|0, 3, 1, '#6aaa9a');
+      px(dx-2, (dy|0)-1, '#3a8a6a');
+      px(dx+2, (dy|0)-1, '#3a8a6a');
     }
   }
   else if (biome === 'desert'){
-    // distant mesas
-    for (let i=0;i<4;i++){
-      const mx = 20 + i*75;
-      rect(mx, 60, 35, 30, '#a86840');
-      rect(mx, 60, 35, 2, '#c88860');
-      rect(mx-2, 65, 39, 5, '#a86840');
-      rect(mx, 90, 35, 1, '#683820');
+    // distant mesas with shading
+    for (let i=0; i<4; i++){
+      const mx = 20 + i*78;
+      const mh = 25 + (i%2)*8;
+      // base
+      rect(mx, 90-mh, 40, mh, '#7a4a2a');
+      // lit top
+      rect(mx, 90-mh, 40, 2, '#a87038');
+      rect(mx, 90-mh, 40, 1, '#c89048');
+      // shadow side
+      rect(mx+30, 90-mh, 10, mh, '#5a3018');
+      // erosion lines
+      for (let j=0; j<3; j++){
+        rect(mx+2+j*12, 88-mh+5, 1, mh-8, '#5a3018');
+      }
+      // base shadow
+      rect(mx, 88, 40, 2, '#3a1808');
     }
-    // cacti
-    for (let i=0;i<4;i++){
-      const cx = 40 + i*70;
-      const cy = 130;
-      rect(cx, cy, 5, 45, '#3a6a3a');
-      rect(cx, cy, 5, 1, '#5a8a5a');
-      rect(cx-4, cy+12, 4, 12, '#3a6a3a'); rect(cx-4, cy+12, 1, 12, '#5a8a5a');
-      rect(cx+5, cy+8, 4, 14, '#3a6a3a'); rect(cx+5, cy+8, 1, 14, '#5a8a5a');
-      // flower on top
-      if (i%2) { px(cx+1, cy-1, '#ff2a6d'); px(cx+3, cy-1, '#ff2a6d'); }
-      // spines
-      for (let s=0;s<6;s++) px(cx, cy+s*7+2, '#fff');
+    // sun rays / atmosphere
+    for (let i=0; i<W; i+=8){
+      if (noise2(i, 88) > 11) px(i, 93, 'rgba(255,200,120,0.4)');
     }
-    // sand dunes
-    for (let i=0;i<W;i+=20){
-      ctx.fillStyle = '#c88860';
-      ctx.beginPath(); ctx.moveTo(i, 215); ctx.quadraticCurveTo(i+10, 205, i+20, 215); ctx.fill();
+    // ground — sand with dithering
+    for (let y=95; y<H; y++){
+      for (let x=0; x<W; x++){
+        const n = noise2(x, y);
+        let c;
+        if (n < 3) c = '#7a4818';
+        else if (n < 7) c = '#a06838';
+        else if (n < 12) c = '#c88848';
+        else c = '#e8b070';
+        px(x, y, c);
+      }
     }
-    // tumbleweed
+    // big saguaros
+    drawSaguaro(60, 160);
+    drawSaguaro(150, 165);
+    drawSaguaro(225, 158);
+    drawSaguaro(295, 163);
+    // rocks
+    for (let i=0; i<8; i++){
+      const rx = 20 + (i*39+i*i*5)%270;
+      const ry = 175 + (i*17)%50;
+      rect(rx, ry, 4, 2, '#6a4828');
+      rect(rx, ry, 4, 1, '#8a6038');
+      px(rx+3, ry+1, '#3a2008');
+    }
+    // dunes in foreground
+    drawDuneRow(globalT);
+    // tumbleweed rolling
     const tw = ((globalT*0.7)%(W+20))-10;
-    rect(tw|0, 210, 5, 5, '#8a6030');
-    rect((tw|0)+1, 211, 3, 3, '#a87040');
+    rect(tw|0, 210, 6, 5, '#8a5018');
+    px((tw|0)+1, 211, '#aa7038');
+    px((tw|0)+3, 212, '#aa7038');
+    px((tw|0)+4, 211, '#5a3010');
+    // cattle skull
+    rect(220, 218, 5, 3, '#e8d8c0');
+    px(222, 219, '#000'); px(223, 219, '#000');
+    px(220, 217, '#e8d8c0'); px(224, 217, '#e8d8c0');
   }
   else if (biome === 'mountain'){
-    // huge snowy peaks
-    for (let i=0;i<3;i++){
-      const px_ = 30 + i*100, py = 50;
-      ctx.fillStyle = '#5a5a6a';
-      ctx.beginPath(); ctx.moveTo(px_, 140); ctx.lineTo(px_+35, py); ctx.lineTo(px_+70, 140); ctx.fill();
-      ctx.fillStyle = '#7a7a8a';
-      ctx.beginPath(); ctx.moveTo(px_+10, 130); ctx.lineTo(px_+35, py+5); ctx.lineTo(px_+50, 130); ctx.fill();
-      // snow cap
+    // distant high peaks
+    drawSnowPeak(60, 25, 65);
+    drawSnowPeak(160, 18, 75);
+    drawSnowPeak(260, 28, 60);
+    // mid peaks
+    drawSnowPeak(110, 50, 35);
+    drawSnowPeak(220, 52, 38);
+    // alpine ground — patchy snow on rock
+    for (let y=95; y<H; y++){
+      for (let x=0; x<W; x++){
+        const n = noise2(x, y);
+        let c;
+        if (n < 3) c = '#3a4858';
+        else if (n < 7) c = '#5a6a7a';
+        else if (n < 11) c = '#a8b8c8';
+        else c = '#f0f4ff';
+        px(x, y, c);
+      }
+    }
+    // pines
+    drawPineTreeBig(50, 80);
+    drawPineTreeBig(135, 88);
+    drawPineTreeBig(225, 82);
+    drawPineTreeBig(295, 86);
+    // smaller pines in mid
+    for (let i=0; i<6; i++){
+      const tx = 30 + i*48, ty = 130;
+      rect(tx-1, ty+8, 3, 8, '#3a1f10');
+      ctx.fillStyle = '#0a2a1a';
+      ctx.beginPath(); ctx.moveTo(tx-5, ty+10); ctx.lineTo(tx, ty); ctx.lineTo(tx+5, ty+10); ctx.fill();
+      ctx.fillStyle = '#1a4a2a';
+      ctx.beginPath(); ctx.moveTo(tx-3, ty+9); ctx.lineTo(tx, ty+2); ctx.lineTo(tx+3, ty+9); ctx.fill();
+      // snow on branches
       ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.moveTo(px_+25, py+12); ctx.lineTo(px_+35, py); ctx.lineTo(px_+45, py+12);
-      ctx.lineTo(px_+42, py+15); ctx.lineTo(px_+40, py+12); ctx.lineTo(px_+35, py+18); ctx.lineTo(px_+30, py+12);
-      ctx.lineTo(px_+28, py+15); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(tx-4, ty+10); ctx.lineTo(tx-2, ty+6); ctx.lineTo(tx-1, ty+10); ctx.fill();
     }
-    // pine trees
-    for (let i=0;i<6;i++){
-      const tx = 25 + i*52 + (i%2)*15;
-      rect(tx, 150, 2, 12, '#2a1a0a');
-      ctx.fillStyle = '#1a3a2a';
-      ctx.beginPath(); ctx.moveTo(tx-5, 158); ctx.lineTo(tx+1, 140); ctx.lineTo(tx+7, 158); ctx.fill();
+    // rocks
+    for (let i=0; i<6; i++){
+      const rx = 30 + (i*53)%270, ry = 175 + (i*23)%55;
+      rect(rx, ry, 6, 3, '#3a4858');
+      rect(rx, ry, 6, 1, '#5a6a7a');
+      rect(rx+1, ry+2, 4, 1, '#1a2030');
+      // snow on top
+      rect(rx+1, ry-1, 4, 1, '#fff');
     }
-    // snow on ground
-    for (let i=0;i<W;i+=8){
-      rect(i, 200 + ((i*7)%4), 4, 1, '#fff');
-    }
-    // falling snowflakes
-    for (let i=0;i<10;i++){
-      const sx = (i*37 + globalT*0.5)%W;
-      const sy = (i*23 + globalT*1.5)%H;
-      px(sx|0, sy|0, '#fff');
+    // animated falling snow (3 layers of depth)
+    for (let i=0; i<35; i++){
+      const sx = (i*37 + globalT*0.4)%W;
+      const sy = (i*23 + globalT*1.8)%H;
+      const sz = (i%3)+1;
+      if (sz === 1) px(sx|0, sy|0, 'rgba(255,255,255,0.6)');
+      else if (sz === 2) px(sx|0, sy|0, '#fff');
+      else { rect(sx|0, sy|0, 2, 2, '#fff'); }
     }
   }
 }
