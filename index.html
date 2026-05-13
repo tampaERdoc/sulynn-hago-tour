@@ -219,74 +219,193 @@ const BAND = [
    hat:true},
 ];
 
-// Improved 4-direction band sprite (16x20)
+// SNES-style band sprite — 13 wide × 20 tall, multi-shade with distinct silhouettes
 function drawBandie(b, x, y, dir=0, frame=0){
-  // frame = walk anim counter; convert to 0..3 step
-  const step = ((frame/6)|0) % 4;
-  const bob = (step === 1 || step === 3) ? -1 : 0;
+  const step = ((frame/8)|0) % 4;
+  const walking = frame > 0;
+  const bob = walking && (step === 1 || step === 3) ? -1 : 0;
   y += bob;
 
-  // shadow
-  for (let i=0;i<10;i++) if((i+1)%2===0) rect(x-4+i, y+15, 1, 1, 'rgba(0,0,0,0.4)');
+  // ── SHADOW ──
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(x-4, y+18, 9, 1);
+  px(x-5, y+18, 'rgba(0,0,0,0.25)');
+  px(x+4, y+18, 'rgba(0,0,0,0.25)');
 
-  // legs (alternate stride)
-  const legA = (step % 2 === 0) ? 0 : 1;
-  const legB = 1 - legA;
-  rect(x-3, y+11+legA, 2, 3, b.pants);
-  rect(x+1, y+11+legB, 2, 3, b.pants);
-  rect(x-3, y+13, 2, 1, '#0a0a1a');
-  rect(x+1, y+13, 2, 1, '#0a0a1a');
+  // ── LEGS / SHOES ──
+  const legL = walking && step % 2 === 1;
+  const legR = walking && step % 2 === 0;
+  // left leg
+  rect(x-3, y+13, 2, 4, b.pants);
+  rect(x-3, y+13, 1, 4, b.shirt2); // shadow side darker
+  rect(x-2, y+13, 1, 1, '#3a3a4a'); // pants highlight
+  // right leg
+  rect(x+1, y+13, 2, 4, b.pants);
+  rect(x+2, y+13, 1, 4, b.shirt2);
+  // shoes (raise the lifted leg one pixel)
+  const lShoeY = y + 17 - (legL ? 1 : 0);
+  const rShoeY = y + 17 - (legR ? 1 : 0);
+  rect(x-3, lShoeY, 3, 1, '#1a0a0a');
+  px(x-3, lShoeY, '#3a2a2a');
+  rect(x+0, rShoeY, 3, 1, '#1a0a0a');
+  px(x+0, rShoeY, '#3a2a2a');
 
-  // body / torso
-  rect(x-4, y+5, 8, 7, b.shirt);
-  rect(x-4, y+5, 8, 1, b.accent); // collar highlight
-  rect(x-4, y+11, 8, 1, b.shirt2); // shadow under shirt
-  // body detail (logo dot)
-  px(x, y+8, b.accent);
+  // ── TORSO / SHIRT ──
+  rect(x-4, y+8, 9, 6, b.shirt);
+  rect(x-4, y+8, 9, 1, b.accent); // top highlight
+  rect(x+3, y+9, 2, 5, b.shirt2); // right side shadow
+  rect(x-4, y+13, 9, 1, b.shirt2); // bottom edge shadow
+  // chest seam
+  px(x, y+9, b.shirt2);
+  px(x, y+10, b.shirt2);
+  px(x, y+11, b.shirt2);
+  // belt
+  rect(x-3, y+13, 7, 1, '#1a0a0a');
+  px(x, y+13, '#f8c844');
+  px(x, y+13, '#fce088');
 
-  // arms
-  const armSwingA = (step === 1) ? 1 : (step === 3 ? -1 : 0);
-  rect(x-5, y+6+armSwingA, 1, 4, b.shirt);
-  rect(x+4, y+6-armSwingA, 1, 4, b.shirt);
-  // hands
-  px(x-5, y+10+armSwingA, b.skin);
-  px(x+4, y+10-armSwingA, b.skin);
+  // ── ARMS ──
+  const armA = walking ? (step === 1 ? 1 : step === 3 ? -1 : 0) : 0;
+  // left arm
+  rect(x-5, y+9+armA, 1, 4, b.shirt);
+  px(x-5, y+9+armA, b.accent);
+  px(x-5, y+12+armA, b.skin); // hand
+  // right arm
+  rect(x+5, y+9-armA, 1, 4, b.shirt);
+  px(x+5, y+9-armA, b.accent);
+  px(x+5, y+12-armA, b.skin);
 
-  // head
-  rect(x-2, y, 5, 5, b.skin);
-  rect(x-2, y+4, 5, 1, b.skin2); // jawline
-  // hair
+  // ── NECK ──
+  rect(x-1, y+6, 3, 2, b.skin);
+  rect(x-1, y+7, 3, 1, b.skin2);
+  px(x+1, y+7, '#000'); // neck shadow
+  // collar bones
+  px(x-2, y+7, b.shirt2);
+  px(x+2, y+7, b.shirt2);
+
+  // ── HEAD (skin) ──
+  rect(x-2, y+2, 5, 5, b.skin);
+  rect(x+2, y+3, 1, 3, b.skin2); // shadow side
+  rect(x-2, y+5, 5, 1, b.skin2); // jaw shadow
+  px(x-2, y+5, b.skin2);
+
+  // ── HAIR / HEADGEAR (front view) ──
   if (dir === 1){
-    // back of head — fill hair
-    rect(x-3, y-1, 7, 5, b.hair);
-    if (b.longHair){ rect(x-3, y+4, 1, 5, b.hair); rect(x+3, y+4, 1, 5, b.hair); rect(x-2, y+8, 5, 1, b.hair); }
-  } else {
-    rect(x-3, y-1, 7, 2, b.hair);
-    rect(x-3, y, 1, 2, b.hair);
-    rect(x+3, y, 1, 2, b.hair);
+    // back of head
+    rect(x-2, y, 5, 7, b.hair);
+    rect(x-3, y+1, 1, 6, b.hair);
+    rect(x+3, y+1, 1, 6, b.hair);
     if (b.longHair){
-      rect(x-3, y, 1, 6, b.hair);
-      rect(x+3, y, 1, 6, b.hair);
-      rect(x-2, y+5, 1, 3, b.hair2);
-      rect(x+2, y+5, 1, 3, b.hair2);
+      rect(x-3, y+7, 1, 8, b.hair);
+      rect(x+3, y+7, 1, 8, b.hair);
+      rect(x-2, y+13, 5, 1, b.hair);
     }
-    if (b.hat){
-      rect(x-3, y-2, 7, 2, '#1a1a1a');
-      rect(x-4, y-1, 9, 1, '#1a1a1a');
-      rect(x-3, y-2, 7, 1, '#3a3a3a'); // hat band shine
-    }
+  } else if (b.longHair){
+    // SULYNN — flowing dark hair past shoulders, side-parted bangs
+    // crown
+    rect(x-2, y, 5, 2, b.hair);
+    px(x-1, y-1, b.hair); px(x+1, y-1, b.hair);
+    // sides cascading down
+    rect(x-3, y+1, 1, 6, b.hair);
+    rect(x+3, y+1, 1, 6, b.hair);
+    // sides past shoulders
+    rect(x-4, y+7, 1, 5, b.hair);
+    rect(x+4, y+7, 1, 5, b.hair);
+    rect(x-3, y+7, 1, 6, b.hair);
+    rect(x+3, y+7, 1, 6, b.hair);
+    // bangs across forehead (with side part)
+    rect(x-2, y+2, 5, 1, b.hair);
+    px(x+1, y+2, b.skin); // part gap
+    // highlights
+    rect(x+0, y+1, 2, 1, b.hair2);
+    px(x-2, y, b.hair2);
+  } else if (b.shades){
+    // JASON — slicked-back hair
+    rect(x-2, y, 5, 2, b.hair);
+    rect(x-3, y+1, 1, 1, b.hair);
+    rect(x+3, y+1, 1, 1, b.hair);
+    px(x-2, y-1, b.hair); px(x+2, y-1, b.hair);
+    // slick highlights (pomade shine)
+    rect(x-1, y, 4, 1, b.hair2);
+    px(x+2, y+1, b.hair2);
+    // sideburns
+    px(x-3, y+3, b.hair);
+    px(x+3, y+3, b.hair);
+  } else if (b.beard){
+    // WILL — short hair + full beard
+    rect(x-2, y, 5, 2, b.hair);
+    rect(x-3, y+1, 1, 2, b.hair);
+    rect(x+3, y+1, 1, 2, b.hair);
+    px(x-1, y-1, b.hair); px(x+1, y-1, b.hair);
+    // hair texture
+    rect(x-1, y, 3, 1, b.hair2);
+    // BEARD (covers jaw)
+    rect(x-3, y+4, 7, 3, b.hair);
+    rect(x-3, y+4, 7, 1, b.hair2); // mustache highlight
+    rect(x-2, y+6, 5, 1, '#1a0808'); // beard shadow
+    // mouth visible through beard
+    px(x, y+5, '#3a1010');
+    // sideburns
+    px(x-3, y+3, b.hair);
+    px(x+3, y+3, b.hair);
+  } else if (b.hat){
+    // ERIC — drummer's ball cap
+    // cap body
+    rect(x-3, y, 7, 2, '#1a1a1a');
+    rect(x-3, y, 7, 1, '#3a3a3a'); // band shine
+    // brim sticking forward
+    rect(x+0, y+1, 5, 1, '#0a0a0a');
+    rect(x+0, y+1, 5, 1, '#0a0a0a');
+    // logo on cap
+    px(x, y, '#ff2a6d');
+    px(x+1, y, '#ff6a8d');
+    // hair peeking out back
+    rect(x-3, y+2, 1, 1, b.hair);
+    rect(x+3, y+2, 1, 1, b.hair);
+    px(x-2, y+2, b.hair);
+    px(x+2, y+2, b.hair);
+  } else {
+    // default short hair
+    rect(x-2, y, 5, 2, b.hair);
+    rect(x-3, y+1, 1, 1, b.hair);
+    rect(x+3, y+1, 1, 1, b.hair);
+    rect(x-1, y, 3, 1, b.hair2);
   }
-  // face features (only if not facing away)
+
+  // ── FACE FEATURES ──
   if (dir !== 1){
     if (b.shades){
-      rect(x-2, y+2, 2, 1, '#000'); rect(x+1, y+2, 2, 1, '#000');
-      px(x-2, y+2, '#fff'); // glint
+      // aviator sunglasses (two lenses + bridge)
+      rect(x-2, y+3, 2, 2, '#0a0a0a');
+      rect(x+1, y+3, 2, 2, '#0a0a0a');
+      px(x, y+3, '#0a0a0a'); // bridge
+      // glint
+      px(x-2, y+3, '#88ddff');
+      px(x+1, y+3, '#88ddff');
+      px(x-1, y+4, '#1a3a5a');
+      px(x+2, y+4, '#1a3a5a');
     } else {
-      px(x-1, y+2, '#000'); px(x+1, y+2, '#000');
+      // eye whites + pupils
+      rect(x-2, y+3, 2, 1, '#fff8e8');
+      rect(x+1, y+3, 2, 1, '#fff8e8');
+      px(x-1, y+3, '#1a1a1a');
+      px(x+2, y+3, '#1a1a1a');
+      // eyebrows (just above)
+      rect(x-2, y+2, 2, 1, b.hair);
+      rect(x+1, y+2, 2, 1, b.hair);
     }
-    if (b.beard){ rect(x-2, y+4, 5, 1, b.hair); }
-    // mouth
-    if (!b.beard) px(x, y+3, '#a02040');
+    // nose shadow
+    px(x, y+4, b.skin2);
+    // mouth (skip if beard)
+    if (!b.beard){
+      rect(x-1, y+5, 3, 1, '#5a1a20');
+      px(x, y+5, '#3a0810');
+      // lip highlight (Sulynn only — fuller pink lips)
+      if (b.longHair){
+        px(x-1, y+5, '#9a2a40');
+        px(x+1, y+5, '#9a2a40');
+      }
+    }
   }
 }
 
@@ -1562,89 +1681,173 @@ function setScene(name, after){
 
 /* ───────────────────────── TITLE SCENE (NEON PALM) ───────────────────────── */
 function drawTitle(){
-  // sunset gradient sky
-  for (let y=0;y<170;y++){
-    const t = y/170;
+  // ── sunset gradient sky with banded color ──
+  for (let y=0;y<165;y++){
+    const t = y/165;
     let r, g, b;
-    if (t < 0.3){ r = 40 + 80*t; g = 10 + 30*t; b = 80 + 100*t; }
-    else if (t < 0.6){ r = 64 + 160*(t-0.3); g = 19 + 40*(t-0.3); b = 110 - 60*(t-0.3); }
-    else { r = 224 - 60*(t-0.6); g = 31 + 50*(t-0.6); b = 50 + 80*(t-0.6); }
+    if (t < 0.25){ r = 32 + 72*(t/0.25); g = 8 + 22*(t/0.25); b = 64 + 100*(t/0.25); }
+    else if (t < 0.55){ const u=(t-0.25)/0.3; r = 104 + 152*u; g = 30 + 42*u; b = 164 - 80*u; }
+    else if (t < 0.78){ const u=(t-0.55)/0.23; r = 240 - 40*u; g = 72 + 80*u; b = 84 + 30*u; }
+    else { const u=(t-0.78)/0.22; r = 200 - 100*u; g = 152 - 40*u; b = 114 - 60*u; }
     rect(0, y, W, 1, `rgb(${r|0},${g|0},${b|0})`);
   }
-  // stars
-  for (let i=0;i<60;i++){
-    const sx = (i*97+13)%W, sy = (i*53+7)%70;
-    if (((globalT/16) + i)%30 > 1) px(sx, sy, '#fff');
+  // dithered horizon glow
+  for (let x=0;x<W;x++){
+    if (noise2(x, 100) > 11) px(x, 108, 'rgba(255,180,120,0.4)');
+    if (noise2(x, 105) > 12) px(x, 109, 'rgba(255,160,90,0.5)');
   }
-  // sun
-  for (let r=14;r>=0;r-=2){
-    const t = (14-r)/14;
-    circle(W/2-4, 75, r, `rgb(${255 - 30*t},${180 - 60*t},${80 + 100*t})`);
-  }
-  // sun stripes
-  for (let i=0;i<5;i++) rect(W/2-18, 78+i*3, 28, 1, 'rgba(20,10,40,0.7)');
 
-  // far skyline
-  for (let i=0;i<20;i++){
-    const bx = i*16; const bh = 8 + ((i*37)%18);
-    rect(bx, 110-bh, 14, bh, 'rgba(20,10,40,0.85)');
-    // windows
-    if ((globalT>>4)%2) {
-      for (let w=0;w<3;w++) px(bx+2+w*4, 110-bh+3, '#ffcd2a');
+  // ── stars ──
+  for (let i=0;i<70;i++){
+    const sx = (i*97+13)%W, sy = (i*53+7)%55;
+    const tw = ((globalT/16)+i)%30;
+    if (tw > 2) px(sx, sy, '#fff');
+    else if (tw > 1) px(sx, sy, '#88ccff');
+  }
+  // shooting star
+  const ss = (globalT%600)/600;
+  if (ss < 0.05){
+    const sx = (ss*20*W)|0, sy = (10 + ss*40)|0;
+    rect(sx, sy, 3, 1, '#fff');
+    rect(sx-3, sy, 3, 1, 'rgba(255,255,255,0.5)');
+  }
+
+  // ── giant sun (with retro horizontal stripes) ──
+  const sunY = 88;
+  for (let r=22;r>=0;r--){
+    const t = (22-r)/22;
+    const cr = 255 - 18*t, cg = 180 - 80*t, cb = 80 + 80*t;
+    if (r > 0) circle(W/2, sunY, r, `rgb(${cr|0},${cg|0},${cb|0})`);
+  }
+  // sun stripes (the "blazing horizon" cliché)
+  for (let i=0;i<6;i++){
+    const sy = sunY + 4 + i*3;
+    const sw = Math.max(0, 44 - i*7);
+    rect(W/2-sw, sy, sw*2, 1, `rgba(28,8,48,${0.7 - i*0.08})`);
+  }
+  // sun reflection on ocean
+  for (let i=0;i<8;i++){
+    const ry = 115 + i*2;
+    const rw = 30 - i*2;
+    rect(W/2-rw, ry, rw*2, 1, `rgba(255,170,100,${0.4 - i*0.04})`);
+  }
+
+  // ── ocean stripe ──
+  rect(0, 113, W, 4, 'rgba(20,8,48,0.7)');
+  for (let x=0;x<W;x+=4){
+    if (noise2(x, 50) > 9) px(x, 114, '#aa6080');
+  }
+
+  // ── SKYLINE — two parallax layers ──
+  // back layer (faint silhouettes)
+  for (let i=0;i<14;i++){
+    const bx = i*24 + 4;
+    const bh = 14 + ((i*23 + 7)%18);
+    rect(bx, 120-bh, 18, bh, 'rgba(20,4,38,0.6)');
+    // little dome / antenna on top
+    if (i%3===1) rect(bx+6, 120-bh-3, 2, 3, 'rgba(20,4,38,0.6)');
+  }
+  // front layer (proper buildings with detail)
+  const buildings = [
+    [10, 30, 18], [26, 42, 20], [44, 25, 16], [58, 50, 22],
+    [78, 30, 18], [94, 38, 20], [112, 55, 28], [138, 40, 22],
+    [158, 28, 16], [172, 48, 24], [194, 35, 20], [212, 60, 26],
+    [236, 32, 18], [254, 45, 22], [272, 26, 16], [288, 38, 20]
+  ];
+  for (const [bx, bh, bw] of buildings){
+    // body
+    rect(bx, 120-bh, bw, bh, '#0a0418');
+    rect(bx, 120-bh, bw, 1, '#22082c');
+    rect(bx, 120-bh, 1, bh, '#1a0420');
+    rect(bx+bw-1, 120-bh, 1, bh, '#040208');
+    // windows in a grid (some lit, some dark, blinking)
+    for (let wy=2; wy<bh-2; wy+=4){
+      for (let wx=2; wx<bw-2; wx+=4){
+        const seed = (bx+wx+wy*7+bh*3);
+        const lit = (seed%5 < 3) && (((globalT>>4) + seed)%9 < 7);
+        if (lit){
+          rect(bx+wx, 120-bh+wy, 2, 2, '#ffcd2a');
+          px(bx+wx, 120-bh+wy, '#fff8a0');
+        } else {
+          rect(bx+wx, 120-bh+wy, 2, 2, '#1a0820');
+        }
+      }
+    }
+    // rooftop accent
+    if (bh > 35){
+      rect(bx+bw/2-1, 120-bh-2, 1, 2, '#0a0418');
+      px(bx+bw/2-1, 120-bh-3, ((globalT>>3)%2)?'#ff2a6d':'#1a0420'); // blinking antenna
     }
   }
+  // ground/road
+  rect(0, 162, W, 80, '#0a0414');
+  rect(0, 162, W, 1, '#22082c');
 
-  // palm tree silhouettes
-  drawPalm(35, 170, 0);
-  drawPalm(285, 165, 1);
-  drawPalm(15, 175, 0);
-  drawPalm(305, 178, 1);
+  // ── PALM trees in front (silhouettes, framing) ──
+  drawPalm(28, 168, 0);
+  drawPalm(298, 165, 1);
+  drawPalm(12, 175, 0);
+  drawPalm(308, 178, 1);
 
-  // ocean horizon
-  rect(0, 110, W, 4, 'rgba(20,5,40,0.85)');
-  // road / ground (dark)
-  rect(0, 165, W, 80, '#0a0816');
-
-  // animated road lines
+  // ── ROAD ──
+  rect(0, 168, W, 18, '#0a0408');
+  rect(0, 168, W, 1, '#3a1a3a');
+  // animated lane dashes
   for (let i=-1;i<10;i++){
     const x = ((globalT*3)%32) + i*32 - 8;
-    rect(x, 178, 14, 3, '#ffcd2a');
-    px(x, 178, '#fff8c0');
+    rect(x, 176, 14, 2, '#ffcd2a');
+    px(x, 176, '#fff8c0');
   }
-  // road edges
-  rect(0, 174, W, 1, '#ff2a6d');
+  // neon edge stripes
+  rect(0, 170, W, 1, '#ff2a6d');
   rect(0, 184, W, 1, '#2a8cff');
+  rect(0, 169, W, 1, 'rgba(255,42,109,0.4)');
+  rect(0, 185, W, 1, 'rgba(42,140,255,0.4)');
 
-  // truck driving across with headlights
-  const tx = ((globalT*1.5)%(W+80))-40;
-  drawTruck(tx|0, 195, 3, true, ['ALLIGATOR','RACCOON','PELICAN'], globalT, true);
-  // exhaust puff
-  if (globalT%4 === 0) spawnPart(tx-18, 192, -0.5, -0.3, 30, '#666', 'dust');
+  // ── Truck driving across (smaller, on the road) ──
+  const tx = ((globalT*1.4)%(W+60)) - 30;
+  drawTruck(tx|0, 192, 3, true, ['ALLIGATOR','RACCOON','PELICAN'], globalT, false);
+  if (globalT%5 === 0) spawnPart(tx-18, 195, -0.3, -0.2, 28, '#5a4a3a', 'dust');
 
-  // title with neon glow
-  const wob = Math.sin(globalT*0.06)*1;
-  // glow layers
-  ctx.fillStyle = 'rgba(255,42,109,0.15)';
-  ctx.fillRect(0, 24+wob, W, 28);
-  textCShadow('SULYNN HAGO', 28+wob, '#ff2a6d', 3, '#7a0030');
-  // chrome reflection
-  for (let i=0;i<3;i++) textCShadow('SULYNN HAGO', 28+wob+i*8+5, `rgba(255,255,255,${0.05-i*0.015})`, 3, 'transparent');
+  // ── LOGO: SULYNN HAGO with clean neon shadow (no echo) ──
+  const wob = Math.sin(globalT*0.05)*1|0;
+  // outer pink glow
+  ctx.fillStyle = 'rgba(255,42,109,0.18)';
+  ctx.fillRect(W/2-78, 24+wob, 156, 24);
+  ctx.fillStyle = 'rgba(255,42,109,0.25)';
+  ctx.fillRect(W/2-70, 26+wob, 140, 20);
+  // drop shadow (single, deeper)
+  textC('SULYNN HAGO', 30+wob+2, '#3a0010', 3);
+  // main fill
+  textC('SULYNN HAGO', 30+wob, '#ff2a6d', 3);
+  // top chrome highlight stripe
+  textC('SULYNN HAGO', 29+wob, '#ffaaba', 3);
 
+  // subtitle
   textCShadow('NIGHT SUMMER HEAT TOUR', 60, '#ffcd2a', 2, '#5a3a00');
-
-  // tagline
   textCShadow('A BAND ROAD TRIP ADVENTURE', 80, '#9adcff', 1, '#000');
 
-  // band line up (small)
+  // ── BAND LINEUP (with proper, non-overlapping labels) ──
+  const lineY = 132;
   for (let i=0;i<4;i++){
-    drawBandie(BAND[i], 70 + i*60, 130, 0, globalT+i*10);
-    textC(BAND[i].short, 148, '#aaa', 1);
-    text(BAND[i].short, 70 + i*60 - BAND[i].short.length*2 + 1, 148, '#aaa', 1);
+    const bx = 50 + i*73;
+    drawBandie(BAND[i], bx, lineY, 0, globalT+i*11);
+    // name banner pinned under each sprite
+    const lbl = BAND[i].short;
+    const lw = lbl.length*4;
+    rect(bx-lw/2-2, lineY+22, lw+4, 7, 'rgba(0,0,0,0.7)');
+    rect(bx-lw/2-2, lineY+22, lw+4, 1, '#ff2a6d');
+    text(lbl, bx-lw/2, lineY+23, '#ffcd2a', 1);
   }
 
-  // press start
-  if ((globalT>>4)%2) {
-    textCShadow('PRESS Z TO START', 220, '#fff', 1, '#000');
+  // ── PRESS Z PROMPT (with frame) ──
+  if ((globalT>>4)%2){
+    const ps = 'PRESS Z TO START';
+    const pw = ps.length*4;
+    rect(W/2-pw/2-4, 216, pw+8, 11, 'rgba(0,0,0,0.85)');
+    rect(W/2-pw/2-4, 216, pw+8, 1, '#ffcd2a');
+    rect(W/2-pw/2-4, 226, pw+8, 1, '#ffcd2a');
+    textC(ps, 219, '#fff', 1);
   }
 
   globalT++;
@@ -2348,11 +2551,10 @@ function initConcert(){
     crowdJump: 0,
     laserT: 0,
     smokeT: 0,
+    phase: 'tutorial', // 'tutorial' -> 'countdown' -> 'playing' -> finished
+    phaseT: 0,
+    demoKey: 0,        // demo arrow key animator for tutorial
   };
-  // pre-populate first few notes
-  for (let i=0;i<3;i++){
-    G.concert.notes.push({lane: Math.floor(Math.random()*4), y: -60 - i*40, dead:false});
-  }
 }
 
 const LANES = ['left','down','up','right'];
@@ -2529,6 +2731,86 @@ function drawConcert(){
   // particles
   drawParts();
 
+  // ─── TUTORIAL OVERLAY ───
+  if (cc.phase === 'tutorial'){
+    // dim the stage so the instructions pop
+    rect(0, 0, W, H, 'rgba(0,0,4,0.75)');
+
+    // outer panel
+    const px0 = 26, py0 = 28, pw = W-52, ph = 184;
+    rect(px0, py0, pw, ph, '#1a0830');
+    rect(px0, py0, pw, 1, '#ffcd2a');
+    rect(px0, py0+ph-1, pw, 1, '#ffcd2a');
+    rect(px0, py0, 1, ph, '#ffcd2a');
+    rect(px0+pw-1, py0, 1, ph, '#ffcd2a');
+    rect(px0+2, py0+2, pw-4, 1, '#ff2a6d');
+
+    // title
+    textCShadow('HOW TO ROCK', py0+8, '#ffcd2a', 2, '#5a3a00');
+    rect(W/2-50, py0+22, 100, 1, '#ff2a6d');
+
+    // four lane example with key labels
+    const exY = py0 + 36;
+    const colors = ['#ff2a6d','#2adc6a','#2a8cff','#a02aff'];
+    const keys   = ['LEFT','DOWN','UP','RIGHT'];
+    const arrowChars = ['<','V','^','>'];
+    for (let i=0;i<4;i++){
+      const lx = px0 + 30 + i*52;
+      // lane chip
+      rect(lx-12, exY, 24, 28, '#0a0418');
+      rect(lx-12, exY, 24, 1, colors[i]);
+      rect(lx-12, exY+27, 24, 1, colors[i]);
+      // arrow note (animated, "falling")
+      const fall = (cc.phaseT + i*15) % 60;
+      const ny = exY + 2 + (fall * 22/60);
+      rect(lx-9, ny, 18, 6, colors[i]);
+      rect(lx-9, ny, 18, 1, '#fff');
+      text(arrowChars[i], lx-1, ny+1, '#000', 1);
+      // hit zone marker at bottom
+      rect(lx-10, exY+22, 20, 3, 'rgba(255,205,42,0.4)');
+      rectO(lx-10, exY+22, 20, 3, '#ffcd2a');
+      // key label below
+      text(keys[i], lx - keys[i].length*2 + 1, exY+32, colors[i], 1);
+      // demo press flash
+      if (cc.demoKey === i){
+        rectO(lx-12, exY, 24, 28, '#fff');
+        textC('PRESS!', exY+14, '#fff', 1);
+        // mini sparkle
+        px(lx, exY+22, '#fff');
+      }
+    }
+
+    // instructions
+    let iy = py0 + 86;
+    textC('NOTES FALL FROM THE TOP IN 4 COLORED LANES', iy, '#fff', 1); iy+=10;
+    textC('PRESS THE MATCHING ARROW WHEN A NOTE', iy, '#fff', 1); iy+=10;
+    textC('REACHES THE YELLOW HIT BAR AT THE BOTTOM', iy, '#fff', 1); iy+=14;
+    textC('PERFECT TIMING = MORE POINTS', iy, '#ffcd2a', 1); iy+=10;
+    textC('BUILD COMBOS FOR MASSIVE BONUSES', iy, '#ff2a6d', 1); iy+=10;
+    textC('YOUR ANIMALS PLAY ALONG ON EVERY HIT!', iy, '#2adc6a', 1); iy+=14;
+
+    // prompt
+    if ((cc.phaseT>>4)%2){
+      const pp = 'PRESS Z OR ANY ARROW TO START';
+      textCShadow(pp, py0+ph-12, '#fff', 1, '#000');
+    }
+    return;
+  }
+
+  // ─── COUNTDOWN OVERLAY ───
+  if (cc.phase === 'countdown'){
+    rect(0, 0, W, H, 'rgba(0,0,4,0.5)');
+    const n = 3 - ((cc.phaseT/60)|0);
+    if (cc.phaseT < 180){
+      // big pulsing number
+      const pulse = (cc.phaseT % 60) / 60;
+      const sz = 6 - (pulse*2|0);
+      textC(n+'', H/2-16, '#ffcd2a', sz);
+      textCShadow('GET READY!', H/2+8, '#fff', 1, '#000');
+    }
+    return;
+  }
+
   if (cc.finished){
     // dark overlay
     rect(0, 0, W, H, 'rgba(0,0,0,0.7)');
@@ -2593,6 +2875,37 @@ function updateConcert(){
     return;
   }
 
+  // ─── TUTORIAL PHASE — wait for player ───
+  if (cc.phase === 'tutorial'){
+    cc.phaseT++;
+    cc.demoKey = ((cc.phaseT/24)|0) % 4;
+    // any arrow press dismisses; or auto-advance after 8 sec
+    if (pressed('z') || pressed('left') || pressed('right') || pressed('up') || pressed('down') || cc.phaseT > 480){
+      cc.phase = 'countdown';
+      cc.phaseT = 0;
+      beep(660, 0.1, 'square', 0.3);
+    }
+    updateParts(); globalT++; return;
+  }
+  // ─── COUNTDOWN PHASE — 3, 2, 1, GO! ───
+  if (cc.phase === 'countdown'){
+    cc.phaseT++;
+    if (cc.phaseT === 1)   beep(440, 0.15, 'square', 0.3);
+    if (cc.phaseT === 60)  beep(440, 0.15, 'square', 0.3);
+    if (cc.phaseT === 120) beep(440, 0.15, 'square', 0.3);
+    if (cc.phaseT === 180){
+      beep(880, 0.3, 'square', 0.4);
+      cc.phase = 'playing';
+      cc.phaseT = 0;
+      // pre-populate first few notes so something shows up immediately
+      for (let i=0;i<3;i++){
+        cc.notes.push({lane: Math.floor(Math.random()*4), y: -60 - i*40, dead:false});
+      }
+    }
+    updateParts(); globalT++; return;
+  }
+
+  // ─── PLAYING ───
   cc.time++;
   cc.nextSpawn--;
   if (cc.nextSpawn <= 0){
