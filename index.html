@@ -1,0 +1,1983 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sulynn Hago: Night Summer Heat Tour</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  html,body{margin:0;padding:0;background:#0a0a14;color:#fff;font-family:'Courier New',monospace;height:100%;overflow:hidden}
+  #wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  canvas{image-rendering:pixelated;image-rendering:crisp-edges;background:#000;box-shadow:0 0 40px #ff2a6d55,0 0 60px #2a6cff33,0 0 0 4px #1a1a2a inset;max-width:100vw;max-height:100vh}
+  #hint{position:fixed;bottom:6px;left:50%;transform:translateX(-50%);font-size:11px;color:#999;letter-spacing:1px;pointer-events:none;text-align:center;text-shadow:0 0 4px #000}
+  #hint b{color:#ffcd2a}
+  #yt{position:fixed;top:-9999px;left:-9999px;width:2px;height:2px;opacity:0;pointer-events:none}
+  #audio-banner{position:fixed;top:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#ffcd2a;padding:6px 14px;font-size:12px;letter-spacing:1px;border:1px solid #ffcd2a;display:none;z-index:10;border-radius:2px}
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="c" width="320" height="240"></canvas></div>
+<div id="yt"></div>
+<div id="audio-banner">CLICK GAME TO START MUSIC</div>
+<div id="hint">ARROWS / WASD move &nbsp;·&nbsp; <b>Z</b> action &nbsp;·&nbsp; <b>X</b> back &nbsp;·&nbsp; <b>M</b> mute &nbsp;·&nbsp; click canvas to focus</div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+(() => {
+const cvs = document.getElementById('c');
+const ctx = cvs.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const W = 320, H = 240;
+
+function fit(){
+  const s = Math.max(1, Math.min(Math.floor(window.innerWidth/W), Math.floor((window.innerHeight-30)/H)));
+  cvs.style.width = (W*s)+'px';
+  cvs.style.height = (H*s)+'px';
+}
+fit(); addEventListener('resize', fit);
+cvs.addEventListener('click', () => { cvs.focus(); startMusic(); });
+cvs.tabIndex = 0; cvs.focus();
+
+/* ───────────────────────── YOUTUBE MUSIC ───────────────────────── */
+let ytPlayer = null, ytReady = false, ytPlaying = false;
+const SONG_ID = 'nUXh3QAd3z0'; // Sulynn Hago – Night Summer Heat (Official Music Video)
+window.onYouTubeIframeAPIReady = () => {
+  ytPlayer = new YT.Player('yt', {
+    height: '2', width: '2',
+    videoId: SONG_ID,
+    playerVars: { autoplay:0, loop:1, playlist:SONG_ID, controls:0, modestbranding:1, playsinline:1, rel:0 },
+    events: {
+      onReady: () => { ytReady = true; ytPlayer.setVolume(55); },
+      onStateChange: (e) => {
+        if (e.data === YT.PlayerState.PLAYING) ytPlaying = true;
+        if (e.data === YT.PlayerState.ENDED) { try{ ytPlayer.playVideo(); }catch(_){} }
+      },
+    },
+  });
+};
+function startMusic(){
+  if (!ytReady || ytPlaying) return;
+  try { ytPlayer.playVideo(); document.getElementById('audio-banner').style.display='none'; } catch(_){}
+}
+function setMusicVol(v){ if (ytReady) try{ ytPlayer.setVolume(v); }catch(_){} }
+function showAudioBanner(){
+  document.getElementById('audio-banner').style.display='block';
+  setTimeout(()=>{ if(!ytPlaying) document.getElementById('audio-banner').style.display='none'; }, 8000);
+}
+setTimeout(showAudioBanner, 1500);
+
+/* ───────────────────────── INPUT ───────────────────────── */
+const keys = {};
+const edge = {};
+addEventListener('keydown', e => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  const k = norm(e.key);
+  if (!keys[k]) edge[k] = true;
+  keys[k] = true;
+  startMusic();
+});
+addEventListener('keyup', e => { keys[norm(e.key)] = false; });
+function norm(k){
+  k = k.toLowerCase();
+  return ({'arrowup':'up','arrowdown':'down','arrowleft':'left','arrowright':'right',
+           'w':'up','s':'down','a':'left','d':'right',
+           ' ':'z','enter':'z','escape':'x'})[k] || k;
+}
+function pressed(k){ if(edge[k]){ edge[k]=false; return true; } return false; }
+
+/* ───────────────────────── SOUND EFFECTS ───────────────────────── */
+let actx = null, muted = false, sfxBus = null;
+function audio(){
+  if (actx) return actx;
+  actx = new (window.AudioContext||window.webkitAudioContext)();
+  sfxBus = actx.createGain(); sfxBus.gain.value = 0.25; sfxBus.connect(actx.destination);
+  return actx;
+}
+function beep(freq=440, dur=0.08, type='square', vol=0.4, when=0){
+  if (muted) return;
+  const a = audio();
+  const t = a.currentTime + when;
+  const o = a.createOscillator(); const g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t+0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  o.connect(g); g.connect(sfxBus);
+  o.start(t); o.stop(t+dur+0.02);
+}
+addEventListener('keydown', e => {
+  if (e.key.toLowerCase()==='m') {
+    muted = !muted;
+    if (ytReady) try{ muted ? ytPlayer.mute() : ytPlayer.unMute(); }catch(_){}
+    flash = 'MUSIC '+(muted?'OFF':'ON'); flashT = 60;
+  }
+});
+
+/* ───────────────────────── PIXEL HELPERS ───────────────────────── */
+function px(x,y,c){ ctx.fillStyle = c; ctx.fillRect(x|0, y|0, 1, 1); }
+function rect(x,y,w,h,c){ ctx.fillStyle = c; ctx.fillRect(x|0,y|0,w,h); }
+function rectO(x,y,w,h,c){ ctx.strokeStyle = c; ctx.lineWidth=1; ctx.strokeRect((x|0)+0.5,(y|0)+0.5,w-1,h-1); }
+function circle(x,y,r,c){ ctx.fillStyle=c; ctx.beginPath(); ctx.arc(x|0,y|0,r,0,Math.PI*2); ctx.fill(); }
+
+// 3x5 font
+const FONT = {
+ 'A':['010','101','111','101','101'],'B':['110','101','110','101','110'],'C':['011','100','100','100','011'],
+ 'D':['110','101','101','101','110'],'E':['111','100','110','100','111'],'F':['111','100','110','100','100'],
+ 'G':['011','100','101','101','011'],'H':['101','101','111','101','101'],'I':['111','010','010','010','111'],
+ 'J':['001','001','001','101','010'],'K':['101','110','100','110','101'],'L':['100','100','100','100','111'],
+ 'M':['101','111','111','101','101'],'N':['101','111','111','111','101'],'O':['010','101','101','101','010'],
+ 'P':['110','101','110','100','100'],'Q':['010','101','101','111','011'],'R':['110','101','110','101','101'],
+ 'S':['011','100','010','001','110'],'T':['111','010','010','010','010'],'U':['101','101','101','101','011'],
+ 'V':['101','101','101','101','010'],'W':['101','101','111','111','101'],'X':['101','101','010','101','101'],
+ 'Y':['101','101','010','010','010'],'Z':['111','001','010','100','111'],
+ '0':['010','101','101','101','010'],'1':['010','110','010','010','111'],'2':['110','001','010','100','111'],
+ '3':['110','001','010','001','110'],'4':['101','101','111','001','001'],'5':['111','100','110','001','110'],
+ '6':['011','100','110','101','010'],'7':['111','001','010','100','100'],'8':['010','101','010','101','010'],
+ '9':['010','101','011','001','110'],
+ ' ':['000','000','000','000','000'],'!':['010','010','010','000','010'],'?':['110','001','010','000','010'],
+ ':':['000','010','000','010','000'],'.':['000','000','000','000','010'],"'":['010','010','000','000','000'],
+ '-':['000','000','111','000','000'],',':['000','000','000','010','100'],'/':['001','001','010','100','100'],
+};
+function text(s, x, y, c='#fff', sc=1){
+  s = (s+'').toUpperCase();
+  for (let i=0;i<s.length;i++){
+    const g = FONT[s[i]] || FONT['?'];
+    for (let r=0;r<5;r++) for (let cc=0;cc<3;cc++)
+      if (g[r][cc]==='1') rect(x+i*(4*sc)+cc*sc, y+r*sc, sc, sc, c);
+  }
+}
+function textC(s, y, c='#fff', sc=1){ text(s, (W - s.length*4*sc + sc)/2, y, c, sc); }
+function textShadow(s, x, y, c, sc=1, shadowC='#000'){
+  text(s, x+sc, y+sc, shadowC, sc);
+  text(s, x, y, c, sc);
+}
+function textCShadow(s, y, c, sc=1, shadowC='#000'){
+  textShadow(s, (W - s.length*4*sc + sc)/2, y, c, sc, shadowC);
+}
+function glow(x,y,w,h,c,steps=3){
+  for (let i=steps;i>0;i--){
+    ctx.fillStyle = c+Math.floor(60/i).toString(16).padStart(2,'0');
+    ctx.fillRect(x-i,y-i,w+i*2,h+i*2);
+  }
+}
+function shadow(x,y,w,h,strength=0.35){
+  for (let i=0;i<w;i++) for (let j=0;j<h;j++)
+    if ((i+j)%2===0) rect(x+i,y+j,1,1,`rgba(0,0,0,${strength})`);
+}
+
+/* ───────────────────────── PARTICLES ───────────────────────── */
+const PARTS = [];
+function spawnPart(x,y,vx,vy,life,c,kind='dot'){
+  PARTS.push({x,y,vx,vy,life,maxLife:life,c,kind});
+}
+function updateParts(){
+  for (let i=PARTS.length-1;i>=0;i--){
+    const p = PARTS[i];
+    p.x += p.vx; p.y += p.vy;
+    if (p.kind === 'dust') { p.vy += 0.02; p.vx *= 0.97; }
+    if (p.kind === 'spark') { p.vy += 0.08; }
+    if (p.kind === 'note') { p.y -= 0.4; }
+    if (p.kind === 'confetti') { p.vy += 0.05; p.vx += Math.sin(p.life*0.3)*0.05; }
+    p.life--;
+    if (p.life<=0) PARTS.splice(i,1);
+  }
+}
+function drawParts(){
+  for (const p of PARTS){
+    const a = p.life/p.maxLife;
+    if (p.kind === 'note'){
+      rect(p.x|0, p.y|0, 1, 3, p.c);
+      rect((p.x|0)+1, p.y|0, 1, 1, p.c);
+      px((p.x|0)-1, (p.y|0)+3, p.c);
+    } else if (p.kind === 'confetti'){
+      rect(p.x|0, p.y|0, 2, 2, p.c);
+    } else if (p.kind === 'dust'){
+      const r = a>0.5?2:1;
+      rect(p.x|0, p.y|0, r, r, p.c);
+    } else {
+      px(p.x|0, p.y|0, p.c);
+    }
+  }
+}
+
+/* ───────────────────────── BAND ───────────────────────── */
+const BAND = [
+  {name:'SULYNN HAGO',     short:'SULYNN', role:'VOCALS/GUITAR', prop:'mic',
+   hair:'#2a1408', hair2:'#4a2818', skin:'#f0c8a0', skin2:'#c89870',
+   shirt:'#ff2a6d', shirt2:'#a01040', accent:'#ffe0e8', pants:'#1a1a3a',
+   longHair:true},
+  {name:'JASON WILSON',    short:'JASON', role:'GUITAR', prop:'guitar',
+   hair:'#0a0a0a', hair2:'#2a2a2a', skin:'#e8b48a', skin2:'#b88454',
+   shirt:'#2a8cff', shirt2:'#0848a8', accent:'#9ed4ff', pants:'#202030',
+   shades:true},
+  {name:'WILL HOFFMAN',    short:'WILL', role:'BASS', prop:'bass',
+   hair:'#c97a2a', hair2:'#8a4a10', skin:'#f0c8a0', skin2:'#c89870',
+   shirt:'#2adc8c', shirt2:'#108050', accent:'#9affc8', pants:'#3a2a1a',
+   beard:true},
+  {name:'ERIC SOMERS-UREA',short:'ERIC',  role:'DRUMS', prop:'drums',
+   hair:'#3a1a08', hair2:'#5a2a18', skin:'#f0c8a0', skin2:'#c89870',
+   shirt:'#a02aff', shirt2:'#5a0aa0', accent:'#e0a8ff', pants:'#202020',
+   hat:true},
+];
+
+// Improved 4-direction band sprite (16x20)
+function drawBandie(b, x, y, dir=0, frame=0){
+  // frame = walk anim counter; convert to 0..3 step
+  const step = ((frame/6)|0) % 4;
+  const bob = (step === 1 || step === 3) ? -1 : 0;
+  y += bob;
+
+  // shadow
+  for (let i=0;i<10;i++) if((i+1)%2===0) rect(x-4+i, y+15, 1, 1, 'rgba(0,0,0,0.4)');
+
+  // legs (alternate stride)
+  const legA = (step % 2 === 0) ? 0 : 1;
+  const legB = 1 - legA;
+  rect(x-3, y+11+legA, 2, 3, b.pants);
+  rect(x+1, y+11+legB, 2, 3, b.pants);
+  rect(x-3, y+13, 2, 1, '#0a0a1a');
+  rect(x+1, y+13, 2, 1, '#0a0a1a');
+
+  // body / torso
+  rect(x-4, y+5, 8, 7, b.shirt);
+  rect(x-4, y+5, 8, 1, b.accent); // collar highlight
+  rect(x-4, y+11, 8, 1, b.shirt2); // shadow under shirt
+  // body detail (logo dot)
+  px(x, y+8, b.accent);
+
+  // arms
+  const armSwingA = (step === 1) ? 1 : (step === 3 ? -1 : 0);
+  rect(x-5, y+6+armSwingA, 1, 4, b.shirt);
+  rect(x+4, y+6-armSwingA, 1, 4, b.shirt);
+  // hands
+  px(x-5, y+10+armSwingA, b.skin);
+  px(x+4, y+10-armSwingA, b.skin);
+
+  // head
+  rect(x-2, y, 5, 5, b.skin);
+  rect(x-2, y+4, 5, 1, b.skin2); // jawline
+  // hair
+  if (dir === 1){
+    // back of head — fill hair
+    rect(x-3, y-1, 7, 5, b.hair);
+    if (b.longHair){ rect(x-3, y+4, 1, 5, b.hair); rect(x+3, y+4, 1, 5, b.hair); rect(x-2, y+8, 5, 1, b.hair); }
+  } else {
+    rect(x-3, y-1, 7, 2, b.hair);
+    rect(x-3, y, 1, 2, b.hair);
+    rect(x+3, y, 1, 2, b.hair);
+    if (b.longHair){
+      rect(x-3, y, 1, 6, b.hair);
+      rect(x+3, y, 1, 6, b.hair);
+      rect(x-2, y+5, 1, 3, b.hair2);
+      rect(x+2, y+5, 1, 3, b.hair2);
+    }
+    if (b.hat){
+      rect(x-3, y-2, 7, 2, '#1a1a1a');
+      rect(x-4, y-1, 9, 1, '#1a1a1a');
+      rect(x-3, y-2, 7, 1, '#3a3a3a'); // hat band shine
+    }
+  }
+  // face features (only if not facing away)
+  if (dir !== 1){
+    if (b.shades){
+      rect(x-2, y+2, 2, 1, '#000'); rect(x+1, y+2, 2, 1, '#000');
+      px(x-2, y+2, '#fff'); // glint
+    } else {
+      px(x-1, y+2, '#000'); px(x+1, y+2, '#000');
+    }
+    if (b.beard){ rect(x-2, y+4, 5, 1, b.hair); }
+    // mouth
+    if (!b.beard) px(x, y+3, '#a02040');
+  }
+}
+
+// Stage version: each member with their actual instrument prop
+function drawBandieStage(b, x, y, frame=0){
+  drawBandie(b, x, y, 0, frame);
+  const bob = ((frame/6)|0)%4;
+  const jam = (bob === 1 || bob === 3) ? -1 : 0;
+  if (b.prop === 'mic'){
+    // mic stand + Sulynn also rocks a guitar slung low
+    rect(x-1, y-6, 1, 11, '#444');
+    rect(x-2, y-7, 3, 2, '#666');
+    px(x-2, y-7, '#888'); px(x, y-7, '#888');
+    // slung guitar across body
+    rect(x+1, y+6+jam, 7, 4, '#e8a020');
+    rect(x+1, y+6+jam, 7, 1, '#ffd060');
+    rect(x+1, y+9+jam, 7, 1, '#a07010');
+    rect(x-2, y+5+jam, 4, 1, '#8a5a2a'); // neck pointing left
+    rect(x-3, y+4+jam, 2, 1, '#5a3a1a'); // headstock
+    px(x+5, y+8+jam, '#1a1a1a'); // pickup
+  } else if (b.prop === 'guitar'){
+    // electric guitar held in playing position
+    rect(x+1, y+7+jam, 8, 5, '#2a1a3a');
+    rect(x+1, y+7+jam, 8, 1, '#5a4a7a');
+    rect(x+1, y+11+jam, 8, 1, '#0a0010');
+    px(x+5, y+9+jam, '#fff'); // pickup
+    rect(x+6, y+9+jam, 1, 2, '#888');
+    // neck
+    rect(x-4, y+6+jam, 5, 1, '#8a5a2a');
+    rect(x-4, y+6+jam, 5, 1, '#a87a4a');
+    rect(x-5, y+5+jam, 2, 2, '#3a1a0a'); // headstock
+    px(x-5, y+5+jam, '#888'); px(x-5, y+6+jam, '#888'); // tuners
+  } else if (b.prop === 'bass'){
+    // bass guitar — bigger body, longer neck
+    rect(x+1, y+7+jam, 9, 5, '#5a2a8a');
+    rect(x+1, y+7+jam, 9, 1, '#8a4aaa');
+    rect(x+1, y+11+jam, 9, 1, '#2a0a4a');
+    rect(x+4, y+9+jam, 2, 1, '#fff'); // strings
+    // longer neck
+    rect(x-6, y+6+jam, 7, 1, '#8a5a2a');
+    rect(x-6, y+6+jam, 7, 1, '#a87a4a');
+    rect(x-7, y+5+jam, 2, 2, '#3a1a0a');
+    px(x-7, y+5+jam, '#888'); px(x-7, y+6+jam, '#888');
+  } else if (b.prop === 'drums'){
+    // small drum kit in front
+    // kick drum (big front)
+    rect(x-7, y+8, 8, 8, '#a02020');
+    rect(x-7, y+8, 8, 1, '#e04040');
+    rect(x-7, y+15, 8, 1, '#600');
+    // drum head circle
+    rect(x-6, y+9, 6, 6, '#f0e8d0');
+    rectO(x-6, y+9, 6, 6, '#888');
+    px(x-3, y+11, '#ff2a6d'); // band logo on drum
+    // snare drum to the side
+    rect(x+2, y+7, 5, 4, '#c0c0c0');
+    rect(x+2, y+7, 5, 1, '#f0f0f0');
+    rect(x+2, y+10, 5, 1, '#666');
+    // cymbal on stand
+    rect(x+9, y, 1, 8, '#444');
+    rect(x+6, y, 7, 1, '#ffcd2a');
+    rect(x+7, y+1, 5, 1, '#a07010');
+    // drumsticks (animated)
+    const stickY = jam ? y+5 : y+3;
+    rect(x-3, stickY, 1, 4, '#a87040');
+    rect(x+2, stickY+jam, 1, 4, '#a87040');
+    px(x-3, stickY, '#d8a070');
+    px(x+2, stickY+jam, '#d8a070');
+  }
+}
+
+/* ───────────────────────── TRUCK ───────────────────────── */
+function drawTruckSide(x, y, dir, frame, headlightsOn=false){
+  const flip = (dir === 2);
+  ctx.save();
+  if (flip){ ctx.translate(x*2, 0); ctx.scale(-1, 1); }
+  const tx = x;
+  // shadow
+  shadow(tx-14, y+9, 30, 3, 0.4);
+  // back bumper (chrome)
+  rect(tx-15, y+2, 2, 5, '#d8d8d8');
+  rect(tx-15, y+2, 2, 1, '#fff');
+  // cab body
+  rect(tx-12, y-7, 11, 13, '#c8000a');
+  rect(tx-12, y-7, 11, 2, '#ff4a2a'); // top highlight
+  rect(tx-12, y+5, 11, 1, '#7a0008'); // bottom shadow
+  // cab roof curve
+  rect(tx-11, y-8, 9, 1, '#c8000a');
+  // window
+  rect(tx-10, y-5, 7, 4, '#1a2030');
+  rect(tx-10, y-5, 7, 1, '#5a8ac0'); // sky reflection
+  rect(tx-10, y-4, 7, 1, '#7aaae0');
+  rect(tx-8, y-3, 2, 1, '#bce8ff'); // glint
+  // door line
+  rect(tx-6, y-1, 1, 6, '#7a0008');
+  // door handle
+  px(tx-4, y+1, '#d8d8d8');
+  // truck bed
+  rect(tx-1, y-5, 13, 11, '#a00008');
+  rect(tx-1, y-5, 13, 2, '#d62828'); // top rim
+  rect(tx, y-4, 11, 8, '#5a0004'); // interior shadow
+  rect(tx, y-4, 11, 1, '#3a0002');
+  // wood planks in bed
+  rect(tx+1, y-3, 9, 6, '#3a200a');
+  rect(tx+2, y-2, 1, 5, '#5a3010');
+  rect(tx+5, y-2, 1, 5, '#5a3010');
+  rect(tx+8, y-2, 1, 5, '#5a3010');
+  // headlight
+  if (headlightsOn){
+    // glow
+    ctx.fillStyle = 'rgba(255,240,180,0.18)';
+    ctx.beginPath(); ctx.moveTo(tx+11, y-3); ctx.lineTo(tx+40, y-12); ctx.lineTo(tx+40, y+6); ctx.lineTo(tx+11, y); ctx.fill();
+    rect(tx+10, y-3, 2, 2, '#fff8b0');
+    px(tx+11, y-2, '#fff');
+  } else {
+    rect(tx+10, y-3, 2, 2, '#ffd966');
+  }
+  // grille
+  for (let i=0;i<3;i++) rect(tx+10, y+i, 2, 1, i%2 ? '#3a3a3a' : '#8a8a8a');
+  // front bumper
+  rect(tx+12, y+2, 2, 4, '#d8d8d8');
+  rect(tx+12, y+2, 2, 1, '#fff');
+  // side mirror
+  rect(tx-11, y-6, 1, 2, '#888');
+  rect(tx-12, y-6, 1, 1, '#3a3a3a');
+  // wheels (rotating)
+  const spin = (frame/3)|0;
+  drawWheel(tx-9, y+7, spin);
+  drawWheel(tx+6, y+7, spin);
+  // exhaust pipe puff occasionally
+  ctx.restore();
+}
+function drawWheel(x, y, spin){
+  rect(x-2, y, 5, 5, '#1a1a1a');
+  rect(x-2, y, 5, 1, '#3a3a3a');
+  rect(x-1, y+1, 3, 3, '#3a3a3a');
+  rect(x, y+1, 1, 3, '#888');
+  // spoke rotation
+  const spokes = [[0,1],[1,0],[0,-1],[-1,0]];
+  const s = spokes[spin%4];
+  px(x+s[0], y+2+s[1], '#aaa');
+}
+
+function drawTruck(x, y, dir=3, wagon=true, animals=[], frame=0, headlights=false){
+  if (dir === 2 || dir === 3){
+    drawTruckSide(x, y, dir, frame, headlights);
+  } else {
+    // top/bottom view
+    shadow(x-10, y+10, 20, 3, 0.4);
+    rect(x-9, y-10, 18, 20, '#c8000a');
+    rect(x-9, y-10, 18, 2, '#ff4a2a');
+    rect(x-9, y+8, 18, 2, '#7a0008');
+    rect(x-7, y-8, 14, 6, '#1a2030');
+    rect(x-7, y-8, 14, 1, '#5a8ac0');
+    rect(x-5, y-7, 2, 1, '#bce8ff');
+    // bed lines
+    rect(x-9, y-1, 18, 1, '#7a0008');
+    rect(x-9, y, 18, 1, '#5a0004');
+    // wheels
+    rect(x-9, y-7, 2, 4, '#1a1a1a');
+    rect(x+7, y-7, 2, 4, '#1a1a1a');
+    rect(x-9, y+3, 2, 4, '#1a1a1a');
+    rect(x+7, y+3, 2, 4, '#1a1a1a');
+    if (dir === 1){
+      rect(x-7, y-10, 2, 1, '#ffd966');
+      rect(x+5, y-10, 2, 1, '#ffd966');
+    } else {
+      rect(x-7, y+9, 2, 1, '#ff2020');
+      rect(x+5, y+9, 2, 1, '#ff2020');
+    }
+  }
+
+  // wagon (always pulled behind in driving direction)
+  if (wagon){
+    let wx, wy;
+    if (dir===3){ wx = x-26; wy = y; }
+    else if (dir===2){ wx = x+26; wy = y; }
+    else if (dir===0){ wx = x; wy = y-22; }
+    else { wx = x; wy = y+22; }
+    drawWagon(wx, wy, dir, animals, frame);
+    // hitch
+    if (dir===3) rect(x-16, y+2, 3, 1, '#444');
+    else if (dir===2) rect(x+13, y+2, 3, 1, '#444');
+    else if (dir===0) rect(x-1, y-15, 1, 3, '#444');
+    else rect(x-1, y+12, 1, 3, '#444');
+  }
+}
+
+function drawWagon(x, y, dir, animals, frame){
+  const spin = (frame/3)|0;
+  shadow(x-9, y+7, 18, 2, 0.4);
+  // base / wood body
+  rect(x-9, y-3, 18, 10, '#8b5a2b');
+  rect(x-9, y-3, 18, 1, '#c9905a');
+  rect(x-9, y+6, 18, 1, '#5a2a0b');
+  // wood planks (vertical)
+  for (let i=0;i<4;i++) rect(x-7+i*5, y-2, 1, 8, '#5a2a0b');
+  // rails on top
+  rect(x-9, y-6, 18, 1, '#9a6a3a');
+  rect(x-9, y-5, 1, 3, '#9a6a3a');
+  rect(x+8, y-5, 1, 3, '#9a6a3a');
+  // wheels
+  drawWheel(x-8, y+5, spin);
+  drawWheel(x+5, y+5, spin);
+  // little flag with band logo
+  rect(x+8, y-10, 1, 4, '#888');
+  rect(x+9, y-10, 5, 3, '#ff2a6d');
+  rect(x+9, y-10, 5, 1, '#ff6a8d');
+  px(x+11, y-9, '#fff');
+
+  // animals peeking out, looking around
+  for (let i=0;i<animals.length;i++){
+    const sx = x - 6 + (i%3)*5;
+    const sy = y - 5 - (((i/3)|0))*4 + ((frame+i*7)%30 < 15 ? 0 : -1);
+    drawMiniAnimal(animals[i], sx, sy);
+  }
+}
+function drawMiniAnimal(a, x, y){
+  const A = ANIMALS[a];
+  const c = A.color, c2 = A.color2 || '#000';
+  rect(x-1, y, 4, 3, c);
+  rect(x-1, y, 4, 1, A.color3 || c); // highlight
+  px(x-1, y-1, c); px(x+2, y-1, c); // ears
+  px(x, y+1, c2); px(x+1, y+1, c2); // eyes
+}
+
+/* ───────────────────────── ANIMALS (BIGGER, BETTER) ───────────────────────── */
+function drawAlligator(x,y,frame=0){
+  const open = (frame%60 < 10) ? 1 : 0;
+  // tail
+  rect(x-14, y+6, 6, 2, '#3a8b3a');
+  rect(x-14, y+6, 6, 1, '#5aab5a');
+  rect(x-16, y+7, 2, 1, '#3a8b3a');
+  // body
+  rect(x-9, y+3, 16, 6, '#3a8b3a');
+  rect(x-9, y+3, 16, 1, '#5aab5a');
+  rect(x-9, y+8, 16, 1, '#1a4a1a');
+  // back ridges
+  for (let i=0;i<7;i++) px(x-7+i*2, y+2, '#2a6a2a');
+  // snout
+  rect(x+7, y+4, 7, 3+open, '#3a8b3a');
+  rect(x+7, y+4, 7, 1, '#5aab5a');
+  // teeth when open
+  if (open){
+    rect(x+8, y+6, 1, 1, '#fff'); rect(x+10, y+6, 1, 1, '#fff'); rect(x+12, y+6, 1, 1, '#fff');
+  }
+  // eye
+  rect(x+5, y+1, 2, 2, '#3a8b3a');
+  rect(x+5, y+1, 2, 1, '#5aab5a');
+  px(x+5, y+2, '#000'); px(x+6, y+2, '#ffd966'); // yellow eye!
+  // nostril
+  px(x+13, y+5, '#000');
+  // legs
+  rect(x-6, y+9, 2, 2, '#2a6a2a');
+  rect(x+3, y+9, 2, 2, '#2a6a2a');
+  px(x-6, y+11, '#1a4a1a'); px(x-4, y+11, '#1a4a1a');
+  px(x+3, y+11, '#1a4a1a'); px(x+5, y+11, '#1a4a1a');
+}
+function drawRaccoon(x,y,frame=0){
+  // tail
+  rect(x+7, y+3, 4, 3, '#888');
+  rect(x+10, y+2, 3, 3, '#666');
+  rect(x+8, y+3, 2, 1, '#222'); // tail ring
+  rect(x+11, y+2, 2, 1, '#222');
+  // body
+  rect(x-5, y+3, 12, 8, '#888');
+  rect(x-5, y+3, 12, 1, '#aaa');
+  rect(x-5, y+10, 12, 1, '#555');
+  // body fur tufts
+  px(x-5, y+5, '#aaa'); px(x+2, y+5, '#aaa');
+  // head
+  rect(x-7, y, 7, 7, '#aaa');
+  rect(x-7, y, 7, 1, '#ccc');
+  // ears
+  rect(x-8, y-2, 2, 2, '#888');
+  rect(x-2, y-2, 2, 2, '#888');
+  px(x-7, y-1, '#1a1a1a');
+  px(x-1, y-1, '#1a1a1a');
+  // mask
+  rect(x-6, y+2, 6, 2, '#1a1a1a');
+  // eyes
+  px(x-5, y+3, '#fff'); px(x-2, y+3, '#fff');
+  px(x-5, y+3, '#fff');
+  // nose
+  rect(x-4, y+4, 2, 1, '#1a1a1a');
+  px(x-3, y+5, '#000');
+  // legs
+  rect(x-4, y+10, 2, 2, '#555');
+  rect(x+3, y+10, 2, 2, '#555');
+}
+function drawPelican(x,y,frame=0){
+  const blink = (frame%80 < 4) ? 1 : 0;
+  // body
+  rect(x-5, y+3, 11, 7, '#f8f8f8');
+  rect(x-5, y+3, 11, 1, '#fff');
+  rect(x-5, y+9, 11, 1, '#c8c8c8');
+  // wing
+  rect(x-7, y+4, 3, 4, '#e0e0e0');
+  rect(x-7, y+4, 3, 1, '#f0f0f0');
+  px(x-6, y+7, '#888'); // wing tip detail
+  // head
+  rect(x+3, y-2, 5, 5, '#f8f8f8');
+  rect(x+3, y-2, 5, 1, '#fff');
+  // bill (long)
+  rect(x+5, y+2, 8, 2, '#e8a020');
+  rect(x+5, y+2, 8, 1, '#ffc040');
+  rect(x+5, y+4, 7, 2, '#c08000'); // pouch
+  rect(x+5, y+5, 6, 1, '#a06000');
+  // eye
+  if (!blink) { px(x+6, y, '#000'); px(x+6, y, '#000'); }
+  else { rect(x+5, y, 2, 1, '#000'); }
+  // legs
+  rect(x-3, y+10, 1, 3, '#e8a020');
+  rect(x+2, y+10, 1, 3, '#e8a020');
+  rect(x-4, y+13, 3, 1, '#e8a020');
+  rect(x+1, y+13, 3, 1, '#e8a020');
+}
+function drawLonghorn(x,y,frame=0){
+  // body
+  rect(x-7, y+3, 14, 7, '#8b5a2b');
+  rect(x-7, y+3, 14, 1, '#a87a4a');
+  rect(x-7, y+9, 14, 1, '#5a3a1a');
+  // body spots
+  px(x-4, y+5, '#a87a4a'); px(x+2, y+6, '#a87a4a'); px(x-1, y+7, '#a87a4a');
+  // head
+  rect(x+5, y, 6, 6, '#8b5a2b');
+  rect(x+5, y, 6, 1, '#a87a4a');
+  // HUGE horns
+  for (let i=0;i<10;i++) rect(x-2+i, y-2, 1, 1, '#f0e0c0');
+  rect(x+8, y-2, 10, 1, '#f0e0c0');
+  rect(x-2, y-3, 2, 1, '#f0e0c0'); rect(x+16, y-3, 2, 1, '#f0e0c0');
+  rect(x-3, y-2, 1, 2, '#d0c0a0'); rect(x+18, y-2, 1, 2, '#d0c0a0');
+  // horn shading
+  for (let i=0;i<8;i++) px(x+i, y-1, '#c0a070');
+  // eye
+  px(x+7, y+2, '#000'); px(x+8, y+2, '#fff');
+  // nose
+  rect(x+9, y+4, 2, 1, '#1a1a1a');
+  px(x+9, y+5, '#000');
+  // legs
+  rect(x-6, y+10, 2, 3, '#5a3a1a');
+  rect(x-2, y+10, 2, 3, '#5a3a1a');
+  rect(x+2, y+10, 2, 3, '#5a3a1a');
+  rect(x+5, y+10, 2, 3, '#5a3a1a');
+  // tail
+  rect(x-9, y+4, 2, 4, '#5a3a1a');
+  px(x-9, y+8, '#3a2a0a');
+}
+function drawBighorn(x,y,frame=0){
+  // body (woolly)
+  rect(x-6, y+3, 12, 7, '#d8c8b0');
+  rect(x-6, y+3, 12, 1, '#f0e0c8');
+  rect(x-6, y+9, 12, 1, '#a89880');
+  // wool tufts
+  for (let i=0;i<6;i++) px(x-5+i*2, y+5, '#f0e0c8');
+  for (let i=0;i<6;i++) px(x-4+i*2, y+7, '#a89880');
+  // head
+  rect(x+4, y+1, 5, 6, '#a89070');
+  rect(x+4, y+1, 5, 1, '#c8b090');
+  // BIG curled horns (front-facing curl)
+  rect(x+2, y-2, 3, 1, '#6a4a2a');
+  rect(x+1, y-1, 1, 2, '#6a4a2a');
+  rect(x+5, y-2, 3, 1, '#6a4a2a');
+  rect(x+8, y-1, 1, 2, '#6a4a2a');
+  rect(x+1, y+1, 1, 2, '#5a3a1a');
+  rect(x+8, y+1, 1, 2, '#5a3a1a');
+  // horn ridges
+  rect(x+2, y-1, 1, 1, '#8a6a4a'); rect(x+4, y-1, 1, 1, '#8a6a4a'); rect(x+6, y-1, 1, 1, '#8a6a4a');
+  // eye
+  px(x+6, y+3, '#000');
+  // nose
+  rect(x+7, y+5, 2, 1, '#1a1a1a');
+  // legs
+  rect(x-5, y+10, 2, 3, '#6a5040');
+  rect(x-1, y+10, 2, 3, '#6a5040');
+  rect(x+2, y+10, 2, 3, '#6a5040');
+  rect(x+5, y+10, 2, 3, '#6a5040');
+}
+function drawBear(x,y,frame=0){
+  // body
+  rect(x-7, y+2, 14, 9, '#6a4a2a');
+  rect(x-7, y+2, 14, 1, '#8a6a4a');
+  rect(x-7, y+10, 14, 1, '#3a2a1a');
+  // belly
+  rect(x-3, y+6, 8, 4, '#7a5a3a');
+  // head
+  rect(x+4, y-2, 7, 7, '#6a4a2a');
+  rect(x+4, y-2, 7, 1, '#8a6a4a');
+  // ears (rounded)
+  rect(x+4, y-3, 2, 2, '#6a4a2a');
+  rect(x+9, y-3, 2, 2, '#6a4a2a');
+  px(x+5, y-2, '#3a2a1a'); px(x+10, y-2, '#3a2a1a');
+  // snout
+  rect(x+9, y+1, 3, 3, '#8a6a4a');
+  rect(x+9, y+3, 3, 1, '#6a4a2a');
+  px(x+11, y+2, '#000'); // nose
+  // eyes
+  px(x+5, y+1, '#000'); px(x+8, y+1, '#000');
+  // mouth
+  rect(x+9, y+4, 2, 1, '#3a2a1a');
+  // legs/paws
+  rect(x-6, y+10, 3, 3, '#3a2a1a');
+  rect(x-1, y+10, 3, 3, '#3a2a1a');
+  rect(x+4, y+10, 3, 3, '#3a2a1a');
+  // claws
+  px(x-6, y+13, '#fff'); px(x-4, y+13, '#fff');
+  px(x-1, y+13, '#fff'); px(x+1, y+13, '#fff');
+  px(x+4, y+13, '#fff'); px(x+6, y+13, '#fff');
+}
+
+const ANIMALS = {
+  ALLIGATOR:{name:'ALLIGATOR',color:'#3a8b3a',color2:'#1a4a1a',color3:'#5aab5a',draw:drawAlligator,sound:[110,130,90,140]},
+  RACCOON:  {name:'RACCOON',  color:'#888',   color2:'#1a1a1a',color3:'#aaa',   draw:drawRaccoon,  sound:[330,392,440,494]},
+  PELICAN:  {name:'PELICAN',  color:'#f0f0f0',color2:'#000',   color3:'#e8a020',draw:drawPelican,  sound:[523,659,784,880]},
+  LONGHORN: {name:'LONGHORN', color:'#8b5a2b',color2:'#000',   color3:'#f0e0c0',draw:drawLonghorn, sound:[82,98,73,110]},
+  BIGHORN:  {name:'BIGHORN',  color:'#d8c8b0',color2:'#000',   color3:'#6a4a2a',draw:drawBighorn,  sound:[294,370,440,392]},
+  BEAR:     {name:'GRIZZLY',  color:'#6a4a2a',color2:'#000',   color3:'#8a6a4a',draw:drawBear,     sound:[65,82,98,73]},
+};
+
+/* ───────────────────────── INSTRUMENTS (BETTER ICONS) ───────────────────────── */
+function drawGuitar(x, y){
+  // body (electric Telecaster-ish)
+  rect(x-1, y+5, 6, 5, '#e8a020');
+  rect(x-1, y+5, 6, 1, '#ffd060');
+  rect(x-1, y+9, 6, 1, '#a07010');
+  px(x+3, y+7, '#000'); // pickup
+  rect(x+3, y+7, 1, 2, '#1a1a1a');
+  // neck
+  rect(x, y, 1, 6, '#8a5a2a');
+  rect(x, y, 1, 1, '#a87a4a');
+  // headstock
+  rect(x-1, y-1, 3, 2, '#5a3a1a');
+  // strings
+  px(x, y, '#fff');
+}
+function drawBanjo(x, y){
+  // round body
+  rect(x-2, y+4, 6, 6, '#d8b070');
+  rect(x-2, y+4, 6, 1, '#f0d090');
+  rect(x-2, y+9, 6, 1, '#a07040');
+  rect(x-1, y+5, 4, 4, '#fff8e0');
+  rect(x-1, y+5, 4, 1, '#fff');
+  // hardware dots
+  for (let i=0;i<4;i++) px(x-2+i*2, y+4, '#888');
+  // neck
+  rect(x+1, y-1, 1, 5, '#8a5a2a');
+  rect(x+1, y-1, 1, 1, '#a87a4a');
+  // 5th string peg
+  px(x, y+1, '#888');
+}
+function drawSax(x, y){
+  // mouthpiece
+  rect(x, y, 2, 1, '#000');
+  rect(x+1, y+1, 1, 4, '#f0c020');
+  // body curve
+  rect(x+1, y+5, 1, 2, '#f0c020');
+  rect(x, y+6, 4, 2, '#f0c020');
+  // bell
+  rect(x, y+7, 5, 3, '#f0c020');
+  rect(x, y+7, 5, 1, '#fff8a0');
+  rect(x, y+9, 5, 1, '#a08000');
+  // keys
+  px(x+1, y+3, '#fff'); px(x+1, y+4, '#fff');
+}
+function drawBass(x, y){
+  // neck
+  rect(x, y, 1, 8, '#a89a8a');
+  rect(x, y, 1, 1, '#d8c8b8');
+  rect(x-1, y-1, 3, 2, '#5a3a1a'); // headstock
+  px(x-1, y-1, '#888'); px(x+1, y-1, '#888');
+  // body
+  rect(x-3, y+7, 7, 5, '#5a2a8a');
+  rect(x-3, y+7, 7, 1, '#7a4aaa');
+  rect(x-3, y+11, 7, 1, '#3a1a5a');
+  rect(x, y+9, 3, 1, '#fff'); // strings
+}
+function drawHarmonica(x, y){
+  rect(x-3, y+3, 8, 4, '#c0c0c0');
+  rect(x-3, y+3, 8, 1, '#f0f0f0');
+  rect(x-3, y+6, 8, 1, '#888');
+  for (let i=0;i<7;i++) rect(x-2+i, y+4, 1, 1, i%2 ? '#444' : '#222');
+}
+function drawDrums(x, y){
+  // drum body
+  rect(x-3, y+2, 8, 6, '#a02020');
+  rect(x-3, y+2, 8, 1, '#e04040');
+  rect(x-3, y+7, 8, 1, '#600');
+  // skin
+  rect(x-3, y+2, 8, 1, '#f0e8d0');
+  // stripes (rope tension)
+  rect(x-3, y+4, 8, 1, '#fff');
+  rect(x-3, y+5, 8, 1, '#1a1a1a');
+  // drumstick
+  rect(x+1, y-2, 1, 5, '#a87040');
+  px(x+1, y-2, '#d8a070');
+}
+const INSTRUMENTS = {
+  GUITAR:    {name:'GUITAR',    color:'#e8a020', icon:drawGuitar},
+  BANJO:     {name:'BANJO',     color:'#d8b070', icon:drawBanjo},
+  SAX:       {name:'SAXOPHONE', color:'#f0c020', icon:drawSax},
+  BASS:      {name:'BASS',      color:'#5a2a8a', icon:drawBass},
+  HARMONICA: {name:'HARMONICA', color:'#c0c0c0', icon:drawHarmonica},
+  DRUMS:     {name:'DRUMS',     color:'#a02020', icon:drawDrums},
+};
+
+/* ───────────────────────── TOUR ROUTE ───────────────────────── */
+const TOUR = [
+  {id:'FL', name:'FLORIDA',    city:'TAMPA',       animal:'ALLIGATOR',instr:'GUITAR',    mx:235, my:170, biome:'swamp'},
+  {id:'TN', name:'TENNESSEE',  city:'NASHVILLE',   animal:'RACCOON',  instr:'BANJO',     mx:205, my:120, biome:'forest'},
+  {id:'LA', name:'LOUISIANA',  city:'NEW ORLEANS', animal:'PELICAN',  instr:'SAX',       mx:175, my:165, biome:'bayou'},
+  {id:'TX', name:'TEXAS',      city:'AUSTIN',      animal:'LONGHORN', instr:'BASS',      mx:135, my:170, biome:'desert'},
+  {id:'CO', name:'COLORADO',   city:'DENVER',      animal:'BIGHORN',  instr:'HARMONICA', mx:100, my:115, biome:'mountain'},
+  {id:'CA', name:'CALIFORNIA', city:'HOLLYWOOD',   animal:'BEAR',     instr:'DRUMS',     mx:45,  my:125, biome:'concert'},
+];
+
+/* ───────────────────────── GAME STATE ───────────────────────── */
+const G = {
+  scene: 'TITLE',
+  picked: 0,
+  selIdx: 0,
+  collected: [],
+  unlocked: 0,
+  truck: {x:0,y:0,dir:3,anim:0},
+  level: null,
+  concert: null,
+  win: false,
+  fade: 1, fadeDir: -1, next: null,
+};
+let flash = '', flashT = 0;
+let globalT = 0;
+
+function setScene(name, after){
+  G.fadeDir = 1; G.next = () => { G.scene = name; G.fadeDir = -1; if(after) after(); };
+}
+
+/* ───────────────────────── TITLE SCENE (NEON PALM) ───────────────────────── */
+function drawTitle(){
+  // sunset gradient sky
+  for (let y=0;y<170;y++){
+    const t = y/170;
+    let r, g, b;
+    if (t < 0.3){ r = 40 + 80*t; g = 10 + 30*t; b = 80 + 100*t; }
+    else if (t < 0.6){ r = 64 + 160*(t-0.3); g = 19 + 40*(t-0.3); b = 110 - 60*(t-0.3); }
+    else { r = 224 - 60*(t-0.6); g = 31 + 50*(t-0.6); b = 50 + 80*(t-0.6); }
+    rect(0, y, W, 1, `rgb(${r|0},${g|0},${b|0})`);
+  }
+  // stars
+  for (let i=0;i<60;i++){
+    const sx = (i*97+13)%W, sy = (i*53+7)%70;
+    if (((globalT/16) + i)%30 > 1) px(sx, sy, '#fff');
+  }
+  // sun
+  for (let r=14;r>=0;r-=2){
+    const t = (14-r)/14;
+    circle(W/2-4, 75, r, `rgb(${255 - 30*t},${180 - 60*t},${80 + 100*t})`);
+  }
+  // sun stripes
+  for (let i=0;i<5;i++) rect(W/2-18, 78+i*3, 28, 1, 'rgba(20,10,40,0.7)');
+
+  // far skyline
+  for (let i=0;i<20;i++){
+    const bx = i*16; const bh = 8 + ((i*37)%18);
+    rect(bx, 110-bh, 14, bh, 'rgba(20,10,40,0.85)');
+    // windows
+    if ((globalT>>4)%2) {
+      for (let w=0;w<3;w++) px(bx+2+w*4, 110-bh+3, '#ffcd2a');
+    }
+  }
+
+  // palm tree silhouettes
+  drawPalm(35, 170, 0);
+  drawPalm(285, 165, 1);
+  drawPalm(15, 175, 0);
+  drawPalm(305, 178, 1);
+
+  // ocean horizon
+  rect(0, 110, W, 4, 'rgba(20,5,40,0.85)');
+  // road / ground (dark)
+  rect(0, 165, W, 80, '#0a0816');
+
+  // animated road lines
+  for (let i=-1;i<10;i++){
+    const x = ((globalT*3)%32) + i*32 - 8;
+    rect(x, 178, 14, 3, '#ffcd2a');
+    px(x, 178, '#fff8c0');
+  }
+  // road edges
+  rect(0, 174, W, 1, '#ff2a6d');
+  rect(0, 184, W, 1, '#2a8cff');
+
+  // truck driving across with headlights
+  const tx = ((globalT*1.5)%(W+80))-40;
+  drawTruck(tx|0, 195, 3, true, ['ALLIGATOR','RACCOON','PELICAN'], globalT, true);
+  // exhaust puff
+  if (globalT%4 === 0) spawnPart(tx-18, 192, -0.5, -0.3, 30, '#666', 'dust');
+
+  // title with neon glow
+  const wob = Math.sin(globalT*0.06)*1;
+  // glow layers
+  ctx.fillStyle = 'rgba(255,42,109,0.15)';
+  ctx.fillRect(0, 24+wob, W, 28);
+  textCShadow('SULYNN HAGO', 28+wob, '#ff2a6d', 3, '#7a0030');
+  // chrome reflection
+  for (let i=0;i<3;i++) textCShadow('SULYNN HAGO', 28+wob+i*8+5, `rgba(255,255,255,${0.05-i*0.015})`, 3, 'transparent');
+
+  textCShadow('NIGHT SUMMER HEAT TOUR', 60, '#ffcd2a', 2, '#5a3a00');
+
+  // tagline
+  textCShadow('A BAND ROAD TRIP ADVENTURE', 80, '#9adcff', 1, '#000');
+
+  // band line up (small)
+  for (let i=0;i<4;i++){
+    drawBandie(BAND[i], 70 + i*60, 130, 0, globalT+i*10);
+    textC(BAND[i].short, 148, '#aaa', 1);
+    text(BAND[i].short, 70 + i*60 - BAND[i].short.length*2 + 1, 148, '#aaa', 1);
+  }
+
+  // press start
+  if ((globalT>>4)%2) {
+    textCShadow('PRESS Z TO START', 220, '#fff', 1, '#000');
+  }
+
+  globalT++;
+  if (pressed('z')){
+    audio(); beep(660,0.08); beep(880,0.12,'square',0.4,0.08);
+    startMusic();
+    setScene('CHARSEL');
+  }
+}
+
+function drawPalm(x, baseY, flip){
+  const sway = Math.sin(globalT*0.04 + x)*1;
+  // trunk
+  for (let i=0;i<6;i++){
+    rect(x + (flip ? -sway*i*0.3 : sway*i*0.3), baseY-i*6-6, 3, 6, '#1a0820');
+    px(x+2, baseY-i*6, '#3a1a40');
+  }
+  // fronds
+  const fy = baseY - 36;
+  const fronds = [[-1,-1],[1,-1],[-2,0],[2,0],[-1,1],[1,1]];
+  for (const [dx,dy] of fronds){
+    for (let i=0;i<8;i++){
+      rect(x+1 + dx*i + sway*dx, fy + dy*i*0.6 - 2, 2, 1, '#0a0820');
+    }
+  }
+  // coconut
+  px(x, fy+2, '#1a0820');
+  px(x+3, fy+1, '#1a0820');
+}
+
+/* ───────────────────────── CHARACTER SELECT ───────────────────────── */
+function drawCharSel(){
+  // backstage backdrop
+  rect(0,0,W,H,'#0a0820');
+  // spotlight cones
+  for (let i=0;i<4;i++){
+    const lx = 40 + i*70;
+    ctx.fillStyle = 'rgba(255,205,42,0.08)';
+    ctx.beginPath();
+    ctx.moveTo(lx, 0); ctx.lineTo(lx-30, 200); ctx.lineTo(lx+30, 200); ctx.fill();
+  }
+  // stage
+  rect(0, 175, W, 65, '#2a1040');
+  rect(0, 175, W, 2, '#5a2070');
+  // floor wood lines
+  for (let i=0;i<8;i++) rect(0, 180+i*7, W, 1, '#1a0830');
+
+  // marquee bulbs
+  for (let i=0;i<W;i+=10){
+    const on = ((globalT>>3) + i)%2;
+    rect(i+3, 3, 4, 4, on ? '#ffcd2a' : '#604010');
+    if (on) px(i+4, 4, '#fff');
+  }
+
+  // title
+  textCShadow('PICK YOUR ROCK STAR', 16, '#ff2a6d', 2, '#5a0820');
+
+  // character cards
+  for (let i=0;i<4;i++){
+    const bx = 40 + i*70, by = 120;
+    const sel = i === G.selIdx;
+    // card bg
+    rect(bx-22, by-38, 44, 80, sel ? '#3a1860' : '#1a0830');
+    rect(bx-22, by-38, 44, 80, 'transparent');
+    rectO(bx-22, by-38, 44, 80, sel ? '#ffcd2a' : '#3a2050');
+    if (sel){
+      // double border
+      rectO(bx-24, by-40, 48, 84, '#ff2a6d');
+      // selection arrow
+      const ab = Math.sin(globalT*0.2)*2|0;
+      text('V', bx-1, by-50+ab, '#ffcd2a', 2);
+    }
+    // band member sprite (big)
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.scale(1.4, 1.4);
+    drawBandie(BAND[i], 0, -14, 0, sel ? globalT : 0);
+    ctx.restore();
+    // name + role
+    text(BAND[i].short, bx - BAND[i].short.length*2 + 1, by+22, '#fff', 1);
+    text(BAND[i].role, bx - BAND[i].role.length*2 + 1, by+32, '#ffcd2a', 1);
+  }
+
+  textCShadow('Z TO CONFIRM     X TO GO BACK', 215, '#aaa', 1, '#000');
+  textCShadow('YOU PLAY THIS ONE AT THE FINAL SHOW', 228, '#666', 1, '#000');
+
+  if (pressed('left')) { G.selIdx = (G.selIdx+3)%4; beep(330,0.05); }
+  if (pressed('right')){ G.selIdx = (G.selIdx+1)%4; beep(330,0.05); }
+  if (pressed('z')){
+    G.picked = G.selIdx;
+    beep(660,0.08); beep(880,0.12,'square',0.4,0.08);
+    setScene('MAP', initMap);
+  }
+  if (pressed('x')){ setScene('TITLE'); }
+  globalT++;
+}
+
+/* ───────────────────────── USA MAP ───────────────────────── */
+function drawUSA(){
+  // night sky gradient
+  for (let y=0;y<70;y++){
+    const t = y/70;
+    rect(0, y, W, 1, `rgb(${10+t*15},${5+t*10},${30+t*30})`);
+  }
+  // stars
+  for (let i=0;i<35;i++){
+    const sx = (i*97+11)%W, sy = (i*41+5)%55;
+    if (((globalT/12)+i)%25 > 2) px(sx, sy, '#fff');
+  }
+  // moon
+  for (let r=11;r>=8;r--) circle(280, 30, r, `rgb(${255-r*4},${230-r*8},${180-r*8})`);
+  px(276, 27, '#e8c890'); px(283, 31, '#e8c890'); px(279, 35, '#e8c890');
+
+  // ocean (animated waves)
+  rect(0, 35, W, H-35, '#1a3a7a');
+  for (let y=40;y<H;y+=4){
+    for (let x=0;x<W;x+=12){
+      const wv = Math.sin((globalT+y*3+x)*0.05)*2|0;
+      rect(x+wv, y, 4, 1, '#3a5aaa');
+      px(x+wv+1, y, '#5a7aca');
+    }
+  }
+  // coast highlight
+  rect(0, 35, W, 1, '#5a8ada');
+
+  // continent — chunky stylized USA
+  const L = '#3a8b4a', LD = '#2a6a3a', LL = '#5aab5a';
+  // west body
+  rect(20, 75, 80, 90, L);
+  rect(20, 75, 80, 2, LL);
+  rect(20, 163, 80, 2, LD);
+  // northwest extension
+  rect(15, 70, 60, 12, L);
+  rect(15, 70, 60, 1, LL);
+  // central
+  rect(95, 80, 80, 85, L);
+  rect(95, 80, 80, 2, LL);
+  // east
+  rect(170, 80, 90, 80, L);
+  rect(170, 80, 90, 2, LL);
+  // northeast bulge
+  rect(240, 75, 35, 15, L);
+  rect(240, 75, 35, 1, LL);
+  // florida peninsula
+  rect(225, 160, 18, 25, L);
+  rect(225, 160, 18, 1, LL);
+  rect(228, 183, 16, 8, L);
+  // texas dip
+  rect(115, 160, 50, 18, L);
+  rect(115, 160, 50, 1, LL);
+  rect(125, 178, 30, 6, L);
+  // outline (south coast)
+  for (let x=20;x<260;x++) px(x, 165, LD);
+  for (let x=225;x<243;x++) px(x, 191, LD);
+
+  // great lakes
+  rect(190, 85, 25, 6, '#1a3a7a');
+  rect(195, 83, 15, 4, '#1a3a7a');
+  px(192, 88, '#3a5aaa');
+  rect(217, 86, 8, 4, '#1a3a7a');
+
+  // ROCKIES with snow caps
+  for (let i=0;i<8;i++){
+    const mx = 70+i*5, my = 100 + (i%2)*4;
+    ctx.fillStyle = '#6a5a4a';
+    ctx.beginPath(); ctx.moveTo(mx, my+8); ctx.lineTo(mx+3, my); ctx.lineTo(mx+6, my+8); ctx.fill();
+    rect(mx+2, my+1, 2, 1, '#fff');
+  }
+  // APPALACHIANS
+  for (let i=0;i<5;i++){
+    const mx = 195+i*8, my = 100 + (i%2)*3;
+    ctx.fillStyle = '#5a6a4a';
+    ctx.beginPath(); ctx.moveTo(mx, my+6); ctx.lineTo(mx+3, my); ctx.lineTo(mx+6, my+6); ctx.fill();
+  }
+  // DESERT (TX/SW)
+  rect(105, 145, 45, 18, '#d8a060');
+  for (let i=0;i<8;i++) px(110+i*5+(i*3)%4, 150+(i%3)*3, '#a87030');
+  // EAST FORESTS
+  for (let i=0;i<8;i++){
+    const fx = 175 + i*10, fy = 105 + (i%3)*4;
+    ctx.fillStyle = '#1a4a2a';
+    ctx.beginPath(); ctx.moveTo(fx, fy+5); ctx.lineTo(fx+2, fy); ctx.lineTo(fx+4, fy+5); ctx.fill();
+  }
+  // BAYOU
+  rect(160, 155, 25, 12, '#2a5a4a');
+  rect(165, 158, 15, 1, '#3a7a5a');
+  // SWAMP (FL)
+  rect(225, 170, 18, 10, '#3a6a4a');
+  rect(228, 172, 12, 1, '#5a9a6a');
+
+  // state markers
+  for (let i=0;i<TOUR.length;i++){
+    const s = TOUR[i];
+    const done = G.collected.includes(s.animal);
+    const cur = i === G.unlocked;
+    if (done){
+      // checkmark gem
+      for (let r=4;r>=0;r-=1){
+        rect(s.mx-r-1, s.my-r-1, r*2+3, r*2+3, r%2 ? '#2adc6a' : '#5afca0');
+      }
+      text('V', s.mx-1, s.my-2, '#0a3a1a', 1);
+    } else if (cur){
+      // pulsing star
+      const pulse = Math.sin(globalT*0.15)*2;
+      ctx.fillStyle = `rgba(255,205,42,${0.3+0.2*Math.sin(globalT*0.1)})`;
+      ctx.fillRect(s.mx-5-pulse, s.my-5-pulse, 11+pulse*2, 11+pulse*2);
+      rect(s.mx-4, s.my-4, 9, 9, '#ffcd2a');
+      rect(s.mx-3, s.my-3, 7, 7, '#ff6a2a');
+      rect(s.mx-2, s.my-2, 5, 5, '#ff2a6d');
+      px(s.mx, s.my, '#fff');
+      // city label above
+      const lbl = s.city;
+      const lw = lbl.length*4;
+      rect(s.mx-lw/2-1, s.my-14, lw+2, 7, 'rgba(0,0,0,0.75)');
+      text(lbl, s.mx-lw/2, s.my-12, '#ffcd2a', 1);
+    } else {
+      rect(s.mx-2, s.my-2, 5, 5, '#555');
+      rect(s.mx-2, s.my-2, 5, 1, '#777');
+      px(s.mx, s.my-1, '#222');
+    }
+  }
+
+  // tour path (dotted, lights up as completed)
+  for (let i=0;i<TOUR.length-1;i++){
+    const a = TOUR[i], b = TOUR[i+1];
+    const steps = Math.max(8, Math.floor(Math.hypot(b.mx-a.mx,b.my-a.my)/3));
+    const done = i < G.unlocked;
+    for (let s=0;s<steps;s++){
+      if (s%2) continue;
+      const t = s/steps;
+      const xx = a.mx + (b.mx-a.mx)*t;
+      const yy = a.my + (b.my-a.my)*t;
+      let c = '#666';
+      if (done){
+        // animated yellow line
+        c = ((s + (globalT>>2))%6 < 3) ? '#ffcd2a' : '#a07820';
+      }
+      rect(xx-1, yy, 1, 1, c);
+    }
+  }
+
+  // truck on map
+  drawTruck(G.truck.x|0, G.truck.y|0, G.truck.dir, true, G.collected, globalT, false);
+  // dust trail
+  if (globalT%6 === 0) {
+    const dx = G.truck.dir === 3 ? -16 : G.truck.dir === 2 ? 16 : 0;
+    const dy = G.truck.dir === 0 ? -16 : G.truck.dir === 1 ? 16 : 0;
+    spawnPart(G.truck.x+dx, G.truck.y+5, dx*0.05, -0.2, 25, '#9a8870', 'dust');
+  }
+
+  // HUD top bar
+  rect(0, 0, W, 12, 'rgba(0,0,0,0.6)');
+  text('USA TOUR MAP', 4, 4, '#ffcd2a', 1);
+  text(G.collected.length+'/'+TOUR.length+' ANIMALS', 220, 4, '#fff', 1);
+
+  // bottom info panel
+  rect(0, H-40, W, 40, 'rgba(0,0,0,0.85)');
+  rect(0, H-40, W, 1, '#ffcd2a');
+  if (G.unlocked < TOUR.length){
+    const s = TOUR[G.unlocked];
+    text('NEXT STOP: '+s.city+', '+s.name, 6, H-34, '#ffcd2a', 1);
+    if (s.biome === 'concert'){
+      text('FINAL CONCERT! GIVE BEAR THE DRUMS!', 6, H-22, '#ff2a6d', 1);
+    } else {
+      text('FIND THE '+ANIMALS[s.animal].name+' AND GIVE IT A '+INSTRUMENTS[s.instr].name, 6, H-22, '#fff', 1);
+    }
+    text('DRIVE TO THE GLOWING STAR. Z TO ENTER.', 6, H-10, '#aaa', 1);
+  }
+
+  // band roster panel (right)
+  drawRoster(W-92, H-38);
+}
+
+function drawRoster(x, y){
+  rectO(x-2, y-2, 90, 28, '#3a3a5a');
+  text('TOUR BUS:', x, y, '#888', 1);
+  // player
+  drawBandie(BAND[G.picked], x+22, y+10, 0, globalT/2);
+  // collected animals row
+  for (let i=0;i<G.collected.length;i++){
+    drawMiniAnimal(G.collected[i], x+38 + i*9, y+12);
+  }
+}
+
+function initMap(){
+  if (G.truck.x === 0 && G.truck.y === 0){
+    G.truck.x = TOUR[0].mx + 30; G.truck.y = TOUR[0].my; G.truck.dir = 2;
+  }
+}
+function updateMap(){
+  let dx=0,dy=0;
+  if (keys.left)  { dx=-1; G.truck.dir=2; }
+  if (keys.right) { dx=1;  G.truck.dir=3; }
+  if (keys.up)    { dy=-1; G.truck.dir=1; }
+  if (keys.down)  { dy=1;  G.truck.dir=0; }
+  if (dx&&dy){ dx*=0.7; dy*=0.7; }
+  G.truck.x += dx*1.0; G.truck.y += dy*1.0;
+  if (dx||dy) G.truck.anim++;
+  G.truck.x = Math.max(15, Math.min(W-15, G.truck.x));
+  G.truck.y = Math.max(45, Math.min(H-50, G.truck.y));
+
+  if (G.unlocked < TOUR.length){
+    const s = TOUR[G.unlocked];
+    const d = Math.hypot(G.truck.x - s.mx, G.truck.y - s.my);
+    if (d < 9 && pressed('z')){
+      beep(660,0.08); beep(990,0.12,'square',0.4,0.08);
+      if (s.biome === 'concert') setScene('CONCERT', initConcert);
+      else setScene('LEVEL', () => initLevel(s));
+    }
+  }
+  globalT++;
+}
+
+/* ───────────────────────── STATE LEVEL ───────────────────────── */
+function initLevel(s){
+  G.level = {
+    state: s,
+    player: {x:30, y:200, dir:3, anim:0},
+    truck: {x:18, y:200},
+    animal: {x: 230 + (Math.random()*40|0), y: 100 + (Math.random()*60|0), found:false, hidden:true, anim:0},
+    items: [],
+    holding: null,
+    won: false,
+    bushes: [],
+    msg: 'FIND THE '+ ANIMALS[s.animal].name + '!',
+    msgT: 240,
+    foliage: [],
+  };
+  // 3 instruments: correct + 2 wrong
+  const all = Object.keys(INSTRUMENTS);
+  const wrong = all.filter(k => k !== s.instr).sort(()=>Math.random()-0.5).slice(0,2);
+  const items = [s.instr, ...wrong].sort(()=>Math.random()-0.5);
+  for (let i=0;i<3;i++){
+    G.level.items.push({
+      key: items[i],
+      x: 70 + i*75 + ((Math.random()*15)|0),
+      y: 130 + ((Math.random()*60-30)|0),
+      picked:false,
+      bob: i*7,
+    });
+  }
+  // bushes / foliage decorations
+  for (let i=0;i<14;i++){
+    G.level.bushes.push({
+      x: 50 + ((i*47+i*i*3)%220),
+      y: 95 + ((i*31)%110),
+      big: (i%3===0),
+      seed: i,
+    });
+  }
+  // background tree positions
+  for (let i=0;i<6;i++){
+    G.level.foliage.push({x: 30 + i*50 + (i*7)%20, y: 30 + (i%2)*15});
+  }
+}
+
+function drawLevel(){
+  const lv = G.level;
+  const s = lv.state;
+
+  // Biome backgrounds (multi-layer with parallax-like depth)
+  const biomes = {
+    swamp:    {sky:['#1a4a3a','#3a7a4a'], ground:['#2a4a2a','#1a3a1a'], accent:'#5a9a4a'},
+    forest:   {sky:['#2a4a5a','#5a7a8a'], ground:['#3a5a3a','#2a4a2a'], accent:'#6a9a4a'},
+    bayou:    {sky:['#2a3a4a','#4a5a7a'], ground:['#2a4040','#1a3030'], accent:'#4a8a6a'},
+    desert:   {sky:['#e8a040','#f0c870'], ground:['#d8a050','#a87040'], accent:'#f0d090'},
+    mountain: {sky:['#5a7aaa','#9acaff'], ground:['#7a8aaa','#5a6a8a'], accent:'#fff'},
+  };
+  const B = biomes[s.biome] || biomes.swamp;
+
+  // sky gradient
+  for (let y=0;y<90;y++){
+    const t = y/90;
+    rect(0, y, W, 1, blendHex(B.sky[0], B.sky[1], t));
+  }
+  // ground gradient
+  for (let y=90;y<H;y++){
+    const t = (y-90)/(H-90);
+    rect(0, y, W, 1, blendHex(B.ground[0], B.ground[1], t));
+  }
+  // sun/moon
+  if (s.biome === 'desert'){
+    for (let r=14;r>=0;r-=2){
+      circle(260, 25, r, `rgb(${255-r*4},${220-r*8},${100+r*4})`);
+    }
+  } else {
+    rect(255, 18, 14, 14, '#fff0a0');
+    rect(255, 18, 14, 2, '#fff8d0');
+    px(258, 22, '#e8c890'); px(263, 26, '#e8c890');
+  }
+
+  // BIOME-SPECIFIC SCENERY
+  drawBiome(s.biome, lv);
+
+  // bushes (with shadows)
+  for (const b of lv.bushes){
+    const sway = Math.sin(globalT*0.05 + b.seed)*1;
+    shadow(b.x-1, b.y+(b.big?9:7), b.big?12:9, 2, 0.35);
+    const sz = b.big ? 10 : 7;
+    rect(b.x, b.y, sz, sz-2, '#1a4a2a');
+    rect(b.x+1, b.y-1+sway*0.3, sz-2, 3, '#2a6a3a');
+    rect(b.x+2, b.y, sz-4, 2, '#3a8a4a');
+    px(b.x+sz-2, b.y, '#5aaa5a');
+    px(b.x+1, b.y+sz-3, '#1a3a1a');
+    // little flowers
+    if (b.big && (b.seed%3 === 0)){
+      px(b.x+3, b.y, '#ffcd2a');
+      px(b.x+sz-3, b.y+1, '#ff2a6d');
+    }
+  }
+
+  // truck (parked, no headlights, no wagon-fill changes)
+  drawTruck(lv.truck.x+10, lv.truck.y, 3, true, G.collected, 0, false);
+
+  // dropped instruments
+  for (const it of lv.items){
+    if (it.picked) continue;
+    const I = INSTRUMENTS[it.key];
+    const bob = Math.sin((globalT+it.bob)*0.08)*1;
+    // shadow
+    shadow(it.x-2, it.y+10, 6, 2, 0.4);
+    // sparkle
+    if ((globalT>>3 + it.bob)%4 === 0){
+      px(it.x+1, it.y-2+bob, '#fff');
+      px(it.x-2, it.y+8, '#fff');
+    }
+    ctx.save(); ctx.translate(0, bob);
+    I.icon(it.x, it.y);
+    ctx.restore();
+  }
+
+  // animal (peeking out of bush if not yet approached)
+  const a = ANIMALS[s.animal];
+  if (!lv.animal.hidden){
+    a.draw(lv.animal.x, lv.animal.y, globalT);
+    if (lv.won){
+      // music notes streaming up
+      if (globalT%10 === 0){
+        spawnPart(lv.animal.x + (Math.random()*10-5), lv.animal.y - 5, (Math.random()-0.5)*0.3, -0.5, 60, ['#ff2a6d','#ffcd2a','#2adc6a'][globalT%3], 'note');
+      }
+    }
+  } else {
+    const pop = Math.sin(globalT*0.08)*2|0;
+    rect(lv.animal.x-2, lv.animal.y+pop+1, 5, 3, a.color);
+    rect(lv.animal.x-2, lv.animal.y+pop+1, 5, 1, a.color3);
+    px(lv.animal.x-1, lv.animal.y+pop+2, a.color2);
+    px(lv.animal.x+1, lv.animal.y+pop+2, a.color2);
+    // ? bubble if close
+    const dx = lv.player.x - lv.animal.x, dy = lv.player.y - lv.animal.y;
+    if (Math.hypot(dx,dy) < 36){
+      const bo = Math.sin(globalT*0.2)*1|0;
+      rect(lv.animal.x-1, lv.animal.y-8+bo, 5, 6, '#fff');
+      px(lv.animal.x+1, lv.animal.y-6+bo, '#000');
+      px(lv.animal.x+1, lv.animal.y-4+bo, '#000');
+      px(lv.animal.x+1, lv.animal.y-2+bo, '#000');
+    }
+  }
+
+  // player (with shadow)
+  shadow(lv.player.x-4, lv.player.y+14, 8, 2, 0.4);
+  drawBandie(BAND[G.picked], lv.player.x, lv.player.y, lv.player.dir, lv.player.anim);
+  if (lv.holding){
+    INSTRUMENTS[lv.holding].icon(lv.player.x-1, lv.player.y-12);
+  }
+
+  // particles
+  drawParts();
+
+  // HUD
+  rect(0, 0, W, 14, 'rgba(0,0,0,0.75)');
+  rect(0, 14, W, 1, '#ffcd2a');
+  text(s.name+' - '+s.city, 4, 4, '#ffcd2a', 1);
+  text('FIND: '+a.name, W-90, 4, '#fff', 1);
+
+  // message box
+  if (lv.msg && lv.msgT > 0){
+    const mw = lv.msg.length*4 + 12;
+    const mx = (W-mw)/2;
+    rect(mx, H-32, mw, 18, '#1a0830');
+    rect(mx, H-32, mw, 1, '#ffcd2a');
+    rect(mx, H-15, mw, 1, '#ffcd2a');
+    rect(mx, H-32, 1, 18, '#ffcd2a');
+    rect(mx+mw-1, H-32, 1, 18, '#ffcd2a');
+    text(lv.msg, mx+6, H-26, '#fff', 1);
+  }
+}
+
+function drawBiome(biome, lv){
+  if (biome === 'swamp'){
+    // moss-draped cypress trees (far)
+    for (let i=0;i<4;i++){
+      const tx = 30 + i*80;
+      rect(tx, 30, 5, 65, '#3a2a1a');
+      rect(tx+1, 30, 1, 65, '#5a3a2a');
+      // canopy
+      ctx.fillStyle = '#1a4a1a';
+      ctx.beginPath(); ctx.moveTo(tx-12, 60); ctx.lineTo(tx+2, 20); ctx.lineTo(tx+16, 60); ctx.fill();
+      ctx.fillStyle = '#3a6a3a';
+      ctx.beginPath(); ctx.moveTo(tx-9, 65); ctx.lineTo(tx+2, 35); ctx.lineTo(tx+13, 65); ctx.fill();
+      // hanging moss
+      for (let j=0;j<4;j++) rect(tx-8+j*5, 55+(j%2)*4, 1, 10, '#5a9a5a');
+    }
+    // water patches
+    for (let i=0;i<5;i++){
+      const wx = 20 + i*60;
+      rect(wx, 195, 50, 12, '#2a4a6a');
+      rect(wx+2, 197, 46, 1, '#5a8aca');
+      // lily pads
+      if (i%2) rect(wx+15, 200, 6, 3, '#3a8a3a');
+    }
+    // fireflies
+    if ((globalT>>3)%4 === 0){
+      for (let i=0;i<6;i++){
+        const fx = (i*47 + globalT)%W;
+        const fy = 40 + (i*23 + globalT/3)%80;
+        px(fx, fy, '#ffd966');
+      }
+    }
+  }
+  else if (biome === 'forest'){
+    // pine trees
+    for (let i=0;i<7;i++){
+      const tx = 20 + i*45 + (i%2)*15;
+      const ty = 45 + (i%2)*10;
+      rect(tx, ty+25, 3, 25, '#3a2a1a');
+      ctx.fillStyle = '#1a4a2a';
+      ctx.beginPath(); ctx.moveTo(tx-10, ty+35); ctx.lineTo(tx+1, ty); ctx.lineTo(tx+12, ty+35); ctx.fill();
+      ctx.fillStyle = '#2a6a3a';
+      ctx.beginPath(); ctx.moveTo(tx-7, ty+30); ctx.lineTo(tx+1, ty+8); ctx.lineTo(tx+9, ty+30); ctx.fill();
+      ctx.fillStyle = '#3a8a4a';
+      ctx.beginPath(); ctx.moveTo(tx-4, ty+25); ctx.lineTo(tx+1, ty+16); ctx.lineTo(tx+6, ty+25); ctx.fill();
+    }
+    // forest floor leaves
+    for (let i=0;i<15;i++){
+      const lx = (i*43)%W, ly = 200 + (i%3)*5;
+      px(lx, ly, '#a85020');
+    }
+  }
+  else if (biome === 'bayou'){
+    // willow trees in mist
+    for (let i=0;i<3;i++){
+      const tx = 50 + i*100;
+      rect(tx, 50, 4, 50, '#2a1a0a');
+      // weeping branches
+      for (let j=0;j<8;j++){
+        rect(tx-12+j*3, 40+(j%3)*4, 2, 20+(j%2)*5, '#3a5a3a');
+        px(tx-12+j*3, 60+(j%2)*4, '#5a8a5a');
+      }
+    }
+    // mist
+    for (let i=0;i<W;i+=4){
+      const m = Math.sin((globalT+i)*0.03)*2;
+      rect(i, 130+m, 4, 1, 'rgba(255,255,255,0.1)');
+    }
+    // bayou water
+    rect(0, 200, W, 40, '#1a3a3a');
+    for (let i=0;i<W;i+=8){
+      const wv = Math.sin((globalT+i)*0.08)*1;
+      rect(i, 205+wv, 4, 1, '#3a6a5a');
+    }
+  }
+  else if (biome === 'desert'){
+    // distant mesas
+    for (let i=0;i<4;i++){
+      const mx = 20 + i*75;
+      rect(mx, 60, 35, 30, '#a86840');
+      rect(mx, 60, 35, 2, '#c88860');
+      rect(mx-2, 65, 39, 5, '#a86840');
+      rect(mx, 90, 35, 1, '#683820');
+    }
+    // cacti
+    for (let i=0;i<4;i++){
+      const cx = 40 + i*70;
+      const cy = 130;
+      rect(cx, cy, 5, 45, '#3a6a3a');
+      rect(cx, cy, 5, 1, '#5a8a5a');
+      rect(cx-4, cy+12, 4, 12, '#3a6a3a'); rect(cx-4, cy+12, 1, 12, '#5a8a5a');
+      rect(cx+5, cy+8, 4, 14, '#3a6a3a'); rect(cx+5, cy+8, 1, 14, '#5a8a5a');
+      // flower on top
+      if (i%2) { px(cx+1, cy-1, '#ff2a6d'); px(cx+3, cy-1, '#ff2a6d'); }
+      // spines
+      for (let s=0;s<6;s++) px(cx, cy+s*7+2, '#fff');
+    }
+    // sand dunes
+    for (let i=0;i<W;i+=20){
+      ctx.fillStyle = '#c88860';
+      ctx.beginPath(); ctx.moveTo(i, 215); ctx.quadraticCurveTo(i+10, 205, i+20, 215); ctx.fill();
+    }
+    // tumbleweed
+    const tw = ((globalT*0.7)%(W+20))-10;
+    rect(tw|0, 210, 5, 5, '#8a6030');
+    rect((tw|0)+1, 211, 3, 3, '#a87040');
+  }
+  else if (biome === 'mountain'){
+    // huge snowy peaks
+    for (let i=0;i<3;i++){
+      const px_ = 30 + i*100, py = 50;
+      ctx.fillStyle = '#5a5a6a';
+      ctx.beginPath(); ctx.moveTo(px_, 140); ctx.lineTo(px_+35, py); ctx.lineTo(px_+70, 140); ctx.fill();
+      ctx.fillStyle = '#7a7a8a';
+      ctx.beginPath(); ctx.moveTo(px_+10, 130); ctx.lineTo(px_+35, py+5); ctx.lineTo(px_+50, 130); ctx.fill();
+      // snow cap
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.moveTo(px_+25, py+12); ctx.lineTo(px_+35, py); ctx.lineTo(px_+45, py+12);
+      ctx.lineTo(px_+42, py+15); ctx.lineTo(px_+40, py+12); ctx.lineTo(px_+35, py+18); ctx.lineTo(px_+30, py+12);
+      ctx.lineTo(px_+28, py+15); ctx.fill();
+    }
+    // pine trees
+    for (let i=0;i<6;i++){
+      const tx = 25 + i*52 + (i%2)*15;
+      rect(tx, 150, 2, 12, '#2a1a0a');
+      ctx.fillStyle = '#1a3a2a';
+      ctx.beginPath(); ctx.moveTo(tx-5, 158); ctx.lineTo(tx+1, 140); ctx.lineTo(tx+7, 158); ctx.fill();
+    }
+    // snow on ground
+    for (let i=0;i<W;i+=8){
+      rect(i, 200 + ((i*7)%4), 4, 1, '#fff');
+    }
+    // falling snowflakes
+    for (let i=0;i<10;i++){
+      const sx = (i*37 + globalT*0.5)%W;
+      const sy = (i*23 + globalT*1.5)%H;
+      px(sx|0, sy|0, '#fff');
+    }
+  }
+}
+
+function blendHex(c1, c2, t){
+  const a = parseInt(c1.slice(1), 16);
+  const b = parseInt(c2.slice(1), 16);
+  const r = ((a>>16)&255)*(1-t) + ((b>>16)&255)*t;
+  const g = ((a>>8)&255)*(1-t) + ((b>>8)&255)*t;
+  const bl = (a&255)*(1-t) + (b&255)*t;
+  return `rgb(${r|0},${g|0},${bl|0})`;
+}
+
+function updateLevel(){
+  const lv = G.level;
+  if (lv.msgT > 0) lv.msgT--;
+  let dx=0,dy=0;
+  if (keys.left)  { dx=-1; lv.player.dir=2; }
+  if (keys.right) { dx=1;  lv.player.dir=3; }
+  if (keys.up)    { dy=-1; lv.player.dir=1; }
+  if (keys.down)  { dy=1;  lv.player.dir=0; }
+  if (dx&&dy){ dx*=0.7; dy*=0.7; }
+  lv.player.x += dx*1.4; lv.player.y += dy*1.4;
+  if (dx||dy) {
+    lv.player.anim++;
+    if (lv.player.anim % 18 === 0 && !muted) beep(180, 0.04, 'triangle', 0.08);
+  }
+  lv.player.x = Math.max(8, Math.min(W-8, lv.player.x));
+  lv.player.y = Math.max(80, Math.min(H-20, lv.player.y));
+
+  // pick up
+  for (const it of lv.items){
+    if (it.picked) continue;
+    if (Math.hypot(lv.player.x - it.x, lv.player.y - it.y) < 12){
+      if (pressed('z') && !lv.holding){
+        it.picked = true;
+        lv.holding = it.key;
+        beep(660,0.06); beep(880,0.10,'square',0.4,0.05);
+        lv.msg = 'PICKED UP '+INSTRUMENTS[it.key].name+'!';
+        lv.msgT = 90;
+        // sparkle
+        for (let i=0;i<8;i++) spawnPart(it.x+1, it.y+5, (Math.random()-0.5)*1.5, -Math.random()*1.5, 30, '#ffcd2a', 'spark');
+      }
+    }
+  }
+  // drop
+  if (lv.holding && pressed('x')){
+    const k = lv.holding;
+    lv.holding = null;
+    const item = lv.items.find(i => i.key===k);
+    item.picked = false;
+    item.x = lv.player.x; item.y = lv.player.y+8;
+    beep(220,0.06);
+  }
+
+  // approach animal
+  const a = lv.animal;
+  const dist = Math.hypot(lv.player.x - a.x, lv.player.y - a.y);
+  if (dist < 20){
+    if (a.hidden){
+      a.hidden = false;
+      lv.msg = ANIMALS[lv.state.animal].name+' APPEARS! GIVE IT AN INSTRUMENT (Z)';
+      lv.msgT = 180;
+      beep(440,0.08); beep(660,0.12,'square',0.4,0.05);
+      // bush rustle particles
+      for (let i=0;i<10;i++) spawnPart(a.x, a.y+5, (Math.random()-0.5)*1.5, -Math.random()*1.2, 25, '#3a8a4a', 'spark');
+    }
+    if (pressed('z') && lv.holding && !lv.won){
+      if (lv.holding === lv.state.instr){
+        lv.won = true;
+        lv.msg = ANIMALS[lv.state.animal].name+' LOVES THE '+INSTRUMENTS[lv.state.instr].name+'!';
+        lv.msgT = 240;
+        beep(523,0.08); beep(659,0.08,'square',0.4,0.08); beep(784,0.16,'square',0.4,0.16);
+        const snd = ANIMALS[lv.state.animal].sound;
+        snd.forEach((f,i) => beep(f, 0.18, 'sawtooth', 0.25, 0.25+i*0.12));
+        // confetti
+        for (let i=0;i<30;i++) spawnPart(a.x, a.y, (Math.random()-0.5)*3, -Math.random()*2-1, 60,
+          ['#ff2a6d','#ffcd2a','#2adc6a','#2a8cff','#a02aff'][i%5], 'confetti');
+        setTimeout(() => {
+          G.collected.push(lv.state.animal);
+          G.unlocked++;
+          setScene('MAP', initMap);
+        }, 2000);
+      } else {
+        lv.msg = 'NOT MY VIBE... TRY ANOTHER!';
+        lv.msgT = 120;
+        beep(200,0.08,'square',0.3); beep(150,0.16,'square',0.3,0.08);
+        const item = lv.items.find(i => i.key===lv.holding);
+        item.picked = false;
+        item.x = lv.player.x + ((Math.random()*30-15)|0);
+        item.y = lv.player.y + ((Math.random()*20-10)|0);
+        lv.holding = null;
+      }
+    }
+  }
+  updateParts();
+  globalT++;
+}
+
+/* ───────────────────────── CONCERT FINALE ───────────────────────── */
+function initConcert(){
+  G.concert = {
+    notes: [], nextSpawn: 60, spawnRate: 50,
+    score: 0, combo: 0, maxCombo: 0, hits: 0, misses: 0,
+    time: 0, total: 60*45, // 45 seconds
+    feedback: '', fbT: 0,
+    finished: false,
+    crowdJump: 0,
+    laserT: 0,
+    smokeT: 0,
+  };
+  // pre-populate first few notes
+  for (let i=0;i<3;i++){
+    G.concert.notes.push({lane: Math.floor(Math.random()*4), y: -60 - i*40, dead:false});
+  }
+}
+
+const LANES = ['left','down','up','right'];
+const LANE_X = [80, 130, 180, 230];
+const HIT_Y = 200;
+
+function drawConcert(){
+  const cc = G.concert;
+
+  // night sky w/ Hollywood Hills
+  for (let y=0;y<H;y++){
+    const t = y/H;
+    rect(0, y, W, 1, `rgb(${10+t*25},${5+t*5},${40+t*20})`);
+  }
+  // stars
+  for (let i=0;i<30;i++){
+    const sx = (i*97 + (globalT>>3))%W, sy = (i*23)%50;
+    px(sx, sy, '#fff');
+  }
+  // Hollywood sign on distant hill
+  rect(40, 40, 240, 30, '#1a0830');
+  ctx.fillStyle = '#1a0830';
+  ctx.beginPath(); ctx.moveTo(0, 70); ctx.lineTo(120, 35); ctx.lineTo(200, 50); ctx.lineTo(320, 65); ctx.lineTo(320, 75); ctx.lineTo(0, 75); ctx.fill();
+  // sign
+  textCShadow('HOLLYWOOD', 38, '#fff', 1, '#000');
+
+  // bowl arches (concentric)
+  for (let i=0;i<5;i++){
+    const r = 90 - i*8;
+    ctx.fillStyle = `rgb(${40+i*8},${10+i*4},${60-i*4})`;
+    rect(W/2-r, 60+i*4, r*2, 5, ctx.fillStyle);
+  }
+  // marquee bulbs around arches
+  for (let i=0;i<W;i+=10){
+    const on = ((globalT>>3) + i)%2;
+    if (i > 40 && i < W-40) {
+      const ay = 60 + Math.abs(i - W/2)*0.08;
+      rect(i, ay, 2, 2, on ? '#ffcd2a' : '#604010');
+    }
+  }
+  // big neon "SULYNN HAGO LIVE"
+  const flick = (globalT>>2)%20 < 18;
+  textCShadow('SULYNN HAGO', 18, flick ? '#ff2a6d' : '#5a0820', 2, '#3a0010');
+  textCShadow('LIVE TONIGHT', 80, '#ffcd2a', 1, '#5a3a00');
+
+  // stage floor with checker pattern
+  rect(20, 100, W-40, 50, '#3a1850');
+  rect(20, 100, W-40, 2, '#5a3070');
+  for (let i=0;i<W-40;i+=8){
+    for (let j=0;j<50;j+=8){
+      if (((i/8)+(j/8))%2) rect(20+i, 100+j, 8, 8, '#2a1040');
+    }
+  }
+  // stage front lights
+  for (let i=0;i<10;i++) rect(28+i*28, 148, 4, 2, ((globalT>>2)+i)%2 ? '#ffcd2a' : '#5a3a00');
+
+  // sweeping spotlights from above
+  cc.laserT++;
+  for (let i=0;i<4;i++){
+    const lx = 40 + i*80;
+    const sw = Math.sin(cc.laserT*0.02 + i*1.5)*40;
+    ctx.fillStyle = `rgba(${i%2?'255,42,109':'42,140,255'},0.12)`;
+    ctx.beginPath();
+    ctx.moveTo(lx, 0);
+    ctx.lineTo(lx + sw - 25, 150);
+    ctx.lineTo(lx + sw + 25, 150);
+    ctx.closePath(); ctx.fill();
+  }
+  // stage lights at top
+  for (let i=0;i<5;i++){
+    rect(40 + i*60, 0, 6, 6, '#1a1a1a');
+    rect(41 + i*60, 6, 4, 2, ((globalT>>3)+i)%2 ? '#ffcd2a' : '#604010');
+  }
+
+  // band on stage: player + collected animals
+  const stageY = 125;
+  const total = 1 + G.collected.length;
+  const startX = W/2 - (total*22)/2 + 11;
+  // player
+  drawBandieStage(BAND[G.picked], startX, stageY, globalT);
+  // animals
+  for (let i=0;i<G.collected.length;i++){
+    const ax = startX + 22 + i*22;
+    const ay = stageY + 6;
+    const aKey = G.collected[i];
+    // little jump on hit
+    const jumpOffset = (cc.combo > 0 && (globalT + i*7)%12 < 6) ? -2 : 0;
+    ANIMALS[aKey].draw(ax, ay + jumpOffset, globalT);
+    const aStr = TOUR.find(t => t.animal===aKey).instr;
+    INSTRUMENTS[aStr].icon(ax+9, ay-3 + jumpOffset);
+  }
+  // music notes flowing up from stage during play
+  if (!cc.finished && globalT%6 === 0 && cc.combo > 0){
+    spawnPart(startX + Math.random()*total*22, stageY+5, (Math.random()-0.5)*0.4, -0.8, 60,
+      ['#ff2a6d','#ffcd2a','#2adc6a','#2a8cff'][globalT%4], 'note');
+  }
+
+  // crowd (multi-layer, animated)
+  for (let i=0;i<W;i+=3){
+    const r = ((i*7)%4);
+    const hop = (cc.combo > 5 && ((i + (globalT>>2))%6 < 3)) ? 1 : 0;
+    rect(i, H-18+hop, 3, 6, '#1a0a2a');
+    if (cc.combo > 10){
+      // raised arms
+      px(i+1, H-22+hop, '#1a0a2a');
+    }
+    if (r === 0) px(i+1, H-15+hop, '#888');
+  }
+  // foreground silhouettes (closer crowd)
+  for (let i=0;i<W;i+=5){
+    rect(i, H-12, 4, 12, '#0a0420');
+    if ((i + globalT)%15 < 5) px(i+2, H-13, '#1a0a30');
+  }
+
+  // note highway
+  // background fade
+  rect(45, 30, 240, 170, 'rgba(0,0,0,0.4)');
+  rectO(45, 30, 240, 170, 'rgba(255,255,255,0.15)');
+  // lanes
+  for (let i=0;i<4;i++){
+    const lx = LANE_X[i];
+    // lane shadow
+    rect(lx-12, 30, 24, HIT_Y-30, 'rgba(0,0,0,0.3)');
+    rectO(lx-12, 30, 24, HIT_Y-30, 'rgba(255,255,255,0.2)');
+    // hit zone
+    const hit = cc.fbT > 0 && i === cc.lastLane;
+    rect(lx-12, HIT_Y, 24, 8, hit ? '#ffcd2a44' : 'rgba(255,255,255,0.1)');
+    rectO(lx-12, HIT_Y, 24, 8, '#ffcd2a');
+    // arrow indicator at bottom of lane
+    drawLaneArrow(i, lx, HIT_Y+1, '#ffcd2a');
+    // key label
+    const labels = ['←','↓','↑','→'];
+    text(labels[i] === '←' ? '<' : labels[i] === '↓' ? 'V' : labels[i] === '↑' ? '^' : '>', lx-1, HIT_Y+10, '#ffcd2a', 1);
+  }
+
+  // falling notes (chunky arrow blocks)
+  for (const n of cc.notes){
+    if (n.dead) continue;
+    const c = ['#ff2a6d','#2adc6a','#2a8cff','#a02aff'][n.lane];
+    const cDark = ['#7a1030','#108040','#103a8a','#400870'][n.lane];
+    // glow trail
+    rect(LANE_X[n.lane]-10, n.y-6, 20, 12, c+'44');
+    // body
+    rect(LANE_X[n.lane]-10, n.y-5, 20, 10, c);
+    rect(LANE_X[n.lane]-10, n.y-5, 20, 2, '#fff');
+    rect(LANE_X[n.lane]-10, n.y+3, 20, 2, cDark);
+    rectO(LANE_X[n.lane]-10, n.y-5, 20, 10, '#fff');
+    drawLaneArrow(n.lane, LANE_X[n.lane], n.y-3, '#fff');
+  }
+
+  // HUD top
+  rect(0, 0, W, 14, 'rgba(0,0,0,0.85)');
+  rect(0, 14, W, 1, '#ffcd2a');
+  text('SCORE: '+cc.score, 4, 4, '#ffcd2a', 1);
+  const comboC = cc.combo > 20 ? '#ff2a6d' : cc.combo > 10 ? '#ffcd2a' : cc.combo > 5 ? '#2adc6a' : '#fff';
+  text('COMBO: '+cc.combo, 90, 4, comboC, 1);
+  text('HIT: '+cc.hits, 170, 4, '#2adc6a', 1);
+  text('MISS: '+cc.misses, 220, 4, '#ff6a6a', 1);
+  const left = Math.max(0, cc.total - cc.time);
+  text('TIME: '+Math.ceil(left/60), W-50, 4, '#fff', 1);
+
+  // big combo display
+  if (cc.combo >= 10){
+    const cp = Math.sin(globalT*0.3)*1|0;
+    textCShadow(cc.combo+' COMBO', 230+cp, '#ff2a6d', 2, '#000');
+  }
+
+  // feedback popup
+  if (cc.fbT > 0){
+    const popup_y = 170 - (18 - cc.fbT);
+    textCShadow(cc.feedback, popup_y, cc.feedback==='PERFECT!' ? '#ffcd2a' : cc.feedback==='GREAT!' ? '#2adc6a' : cc.feedback==='GOOD' ? '#fff' : '#ff6a6a', 2, '#000');
+  }
+
+  // particles
+  drawParts();
+
+  if (cc.finished){
+    // dark overlay
+    rect(0, 0, W, H, 'rgba(0,0,0,0.7)');
+    // result panel
+    rect(30, 60, W-60, 130, '#1a0830');
+    rectO(30, 60, W-60, 130, '#ffcd2a');
+    rectO(32, 62, W-64, 126, '#ff2a6d');
+    const accuracy = cc.hits + cc.misses > 0 ? Math.round(cc.hits*100/(cc.hits+cc.misses)) : 0;
+    textCShadow('SHOW COMPLETE!', 76, '#ffcd2a', 2, '#5a3a00');
+    text('SCORE:', 60, 110, '#fff', 1);    text(cc.score+'', W-100, 110, '#ffcd2a', 1);
+    text('MAX COMBO:', 60, 124, '#fff', 1);text(cc.maxCombo+'', W-100, 124, '#ffcd2a', 1);
+    text('ACCURACY:', 60, 138, '#fff', 1); text(accuracy+'%', W-100, 138, '#ffcd2a', 1);
+    text('ANIMALS:', 60, 152, '#fff', 1);  text(G.collected.length+'/6', W-100, 152, '#ffcd2a', 1);
+    const grade = accuracy>=90?'S':accuracy>=80?'A':accuracy>=65?'B':accuracy>=50?'C':'D';
+    const gradeC = grade==='S'?'#ffcd2a':grade==='A'?'#2adc6a':grade==='B'?'#2a8cff':grade==='C'?'#fff':'#888';
+    textCShadow('GRADE: '+grade, 168, gradeC, 2, '#000');
+    if ((globalT>>4)%2) textCShadow('PRESS Z TO ROCK ON', 186, '#fff', 1, '#000');
+    // celebratory confetti
+    if (globalT % 4 === 0){
+      for (let i=0;i<3;i++){
+        spawnPart(Math.random()*W, -5, (Math.random()-0.5)*1, Math.random()*1.5+0.5, 200,
+          ['#ff2a6d','#ffcd2a','#2adc6a','#2a8cff','#a02aff'][i%5], 'confetti');
+      }
+    }
+  }
+}
+
+function drawLaneArrow(lane, x, y, c){
+  if (lane === 0){ // left
+    px(x-3, y, c); px(x-2, y-1, c); px(x-2, y+1, c);
+    px(x-1, y-2, c); px(x-1, y+2, c);
+    rect(x-3, y-1, 6, 3, c);
+  } else if (lane === 1){ // down
+    rect(x-1, y-3, 3, 4, c);
+    px(x-2, y, c); px(x+2, y, c);
+    px(x-2, y+1, c); px(x+2, y+1, c);
+    px(x, y+2, c);
+  } else if (lane === 2){ // up
+    rect(x-1, y, 3, 4, c);
+    px(x-2, y, c); px(x+2, y, c);
+    px(x-2, y-1, c); px(x+2, y-1, c);
+    px(x, y-2, c);
+  } else { // right
+    px(x+3, y, c); px(x+2, y-1, c); px(x+2, y+1, c);
+    px(x+1, y-2, c); px(x+1, y+2, c);
+    rect(x-3, y-1, 6, 3, c);
+  }
+}
+
+const STAGE_KEYS = ['left','down','up','right'];
+function updateConcert(){
+  const cc = G.concert;
+  if (cc.finished){
+    if (pressed('z')){
+      G.win = true;
+      G.unlocked = TOUR.length;
+      G.collected = []; G.fadeDir = 1;
+      G.next = () => { G.scene = 'TITLE'; G.fadeDir = -1; globalT = 0; G.collected = []; G.unlocked = 0; G.truck = {x:0,y:0,dir:3,anim:0}; };
+    }
+    updateParts();
+    globalT++;
+    return;
+  }
+
+  cc.time++;
+  cc.nextSpawn--;
+  if (cc.nextSpawn <= 0){
+    cc.notes.push({lane: Math.floor(Math.random()*4), y: 30, dead:false});
+    cc.spawnRate = Math.max(20, 50 - cc.time/240);
+    cc.nextSpawn = cc.spawnRate;
+  }
+  for (const n of cc.notes){
+    if (n.dead) continue;
+    n.y += 2.4;
+    if (n.y > HIT_Y + 12){
+      n.dead = true;
+      cc.combo = 0;
+      cc.misses++;
+      cc.feedback = 'MISS';
+      cc.fbT = 20;
+      beep(120, 0.1, 'sawtooth', 0.18);
+    }
+  }
+  for (let i=0;i<4;i++){
+    if (pressed(STAGE_KEYS[i])){
+      let best = null, bestDist = 99;
+      for (const n of cc.notes){
+        if (n.dead || n.lane !== i) continue;
+        const d = Math.abs(n.y - HIT_Y);
+        if (d < bestDist){ bestDist = d; best = n; }
+      }
+      if (best && bestDist < 15){
+        best.dead = true;
+        cc.hits++; cc.combo++;
+        cc.maxCombo = Math.max(cc.maxCombo, cc.combo);
+        cc.lastLane = i;
+        let pts = 10;
+        if (bestDist < 4){ pts = 30; cc.feedback = 'PERFECT!'; }
+        else if (bestDist < 9){ pts = 20; cc.feedback = 'GREAT!'; }
+        else { pts = 10; cc.feedback = 'GOOD'; }
+        cc.score += pts * (1 + Math.floor(cc.combo/10));
+        cc.fbT = 20;
+        const tune = [262,330,392,523,659,784,392,523];
+        beep(tune[cc.hits%tune.length], 0.10, 'square', 0.25);
+        if (G.collected.length>0){
+          const a = G.collected[cc.hits%G.collected.length];
+          const snd = ANIMALS[a].sound;
+          beep(snd[cc.hits%snd.length], 0.08, 'triangle', 0.18);
+        }
+        // hit particles
+        for (let k=0;k<5;k++){
+          spawnPart(LANE_X[i], HIT_Y, (Math.random()-0.5)*2, -Math.random()*2, 25,
+            ['#ff2a6d','#2adc6a','#2a8cff','#a02aff'][i], 'spark');
+        }
+      } else {
+        cc.combo = 0;
+        cc.feedback = 'MISS';
+        cc.fbT = 16;
+        beep(110, 0.1, 'sawtooth', 0.18);
+      }
+    }
+  }
+  if (cc.fbT > 0) cc.fbT--;
+  if (cc.time >= cc.total){
+    cc.finished = true;
+    [523,659,784,1046].forEach((f,i) => beep(f, 0.3, 'square', 0.3, i*0.15));
+  }
+  updateParts();
+  globalT++;
+}
+
+/* ───────────────────────── MAIN LOOP ───────────────────────── */
+function loop(){
+  rect(0,0,W,H,'#000');
+  if (G.scene === 'TITLE') drawTitle();
+  else if (G.scene === 'CHARSEL') drawCharSel();
+  else if (G.scene === 'MAP') { drawUSA(); updateMap(); }
+  else if (G.scene === 'LEVEL') { drawLevel(); updateLevel(); }
+  else if (G.scene === 'CONCERT') { drawConcert(); updateConcert(); }
+
+  if (flashT > 0){
+    rect(0, H/2-8, W, 14, 'rgba(0,0,0,0.75)');
+    textCShadow(flash, H/2-4, '#ffcd2a', 1, '#000');
+    flashT--;
+  }
+
+  if (G.fadeDir > 0){
+    G.fade = Math.min(1, G.fade + 0.06);
+    if (G.fade >= 1 && G.next){ const n = G.next; G.next = null; n(); }
+  } else {
+    G.fade = Math.max(0, G.fade - 0.06);
+  }
+  if (G.fade > 0.01) rect(0, 0, W, H, `rgba(0,0,0,${G.fade})`);
+
+  requestAnimationFrame(loop);
+}
+loop();
+})();
+</script>
+</body>
+</html>
