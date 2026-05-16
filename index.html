@@ -488,148 +488,254 @@ function drawBandieStage(b, x, y, frame=0){
 }
 
 /* ───────────────────────── TRUCK ───────────────────────── */
-function drawTruckSide(x, y, dir, frame, headlightsOn=false){
+/* ─── VINTAGE PICKUP TRUCK (1965 Ford F-100 style) ─── */
+// Profile: low bed in back, tall cab in middle, low hood in front.
+// Animals ride in the open bed (no wagon).
+function drawTruckSide(x, y, dir, frame, headlightsOn=false, animals=[]){
   const flip = (dir === 2);
   ctx.save();
   if (flip){ ctx.translate(x*2, 0); ctx.scale(-1, 1); }
-  const tx = x;
-  // shadow
-  shadow(tx-14, y+9, 30, 3, 0.4);
-  // back bumper (chrome)
-  rect(tx-15, y+2, 2, 5, '#d8d8d8');
-  rect(tx-15, y+2, 2, 1, '#fff');
-  // cab body
-  rect(tx-12, y-7, 11, 13, '#c8000a');
-  rect(tx-12, y-7, 11, 2, '#ff4a2a'); // top highlight
-  rect(tx-12, y+5, 11, 1, '#7a0008'); // bottom shadow
-  // cab roof curve
-  rect(tx-11, y-8, 9, 1, '#c8000a');
-  // window
-  rect(tx-10, y-5, 7, 4, '#1a2030');
-  rect(tx-10, y-5, 7, 1, '#5a8ac0'); // sky reflection
-  rect(tx-10, y-4, 7, 1, '#7aaae0');
-  rect(tx-8, y-3, 2, 1, '#bce8ff'); // glint
-  // door line
-  rect(tx-6, y-1, 1, 6, '#7a0008');
-  // door handle
-  px(tx-4, y+1, '#d8d8d8');
-  // truck bed
-  rect(tx-1, y-5, 13, 11, '#a00008');
-  rect(tx-1, y-5, 13, 2, '#d62828'); // top rim
-  rect(tx, y-4, 11, 8, '#5a0004'); // interior shadow
-  rect(tx, y-4, 11, 1, '#3a0002');
-  // wood planks in bed
-  rect(tx+1, y-3, 9, 6, '#3a200a');
-  rect(tx+2, y-2, 1, 5, '#5a3010');
-  rect(tx+5, y-2, 1, 5, '#5a3010');
-  rect(tx+8, y-2, 1, 5, '#5a3010');
-  // headlight
-  if (headlightsOn){
-    // glow
-    ctx.fillStyle = 'rgba(255,240,180,0.18)';
-    ctx.beginPath(); ctx.moveTo(tx+11, y-3); ctx.lineTo(tx+40, y-12); ctx.lineTo(tx+40, y+6); ctx.lineTo(tx+11, y); ctx.fill();
-    rect(tx+10, y-3, 2, 2, '#fff8b0');
-    px(tx+11, y-2, '#fff');
-  } else {
-    rect(tx+10, y-3, 2, 2, '#ffd966');
+
+  // === DROP SHADOW ===
+  shadow(x-15, y+10, 32, 3, 0.45);
+
+  // === REAR BUMPER (chrome) ===
+  rect(x-15, y+3, 3, 2, '#d8d8d8');
+  rect(x-15, y+3, 3, 1, '#fff8f0');
+  px(x-15, y+4, '#7a7a7a');
+
+  // === TAILLIGHTS ===
+  rect(x-13, y, 1, 3, '#ff2020');
+  px(x-13, y, '#ff8080');
+  px(x-13, y+2, '#a00010');
+
+  // === BED (low, behind cab) ===
+  // bed sidewall (red)
+  rect(x-13, y-2, 8, 6, '#c8000a');
+  rect(x-13, y-2, 8, 1, '#ff4a2a');          // top highlight
+  rect(x-13, y+3, 8, 1, '#7a0008');          // bottom shadow
+  // bed top rail (front rim)
+  rect(x-13, y-3, 9, 1, '#ff4a2a');
+  px(x-5, y-3, '#c8000a');                   // rail transition to cab
+  // tailgate seam (vertical line near back)
+  rect(x-12, y-2, 1, 6, '#a00008');
+  // looking down into bed: wood floor visible
+  rect(x-12, y-3, 8, 1, '#3a200a');
+  for (let i=0; i<4; i++) px(x-11+i*2, y-3, '#5a3010');
+  // gas cap on bed side
+  rect(x-9, y+1, 2, 1, '#888');
+  px(x-9, y+1, '#c8c8c8');
+  // body trim line at base
+  rect(x-13, y+2, 8, 1, '#a00008');
+
+  // === ANIMALS RIDING IN BED ===
+  for (let i=0; i<animals.length; i++){
+    const sx = x - 12 + (i%3)*3;
+    const bobOffset = ((frame+i*7)%30 < 15) ? 0 : -1;
+    const sy = y - 5 - (((i/3)|0))*3 + bobOffset;
+    drawMiniAnimal(animals[i], sx, sy);
   }
-  // grille
-  for (let i=0;i<3;i++) rect(tx+10, y+i, 2, 1, i%2 ? '#3a3a3a' : '#8a8a8a');
-  // front bumper
-  rect(tx+12, y+2, 2, 4, '#d8d8d8');
-  rect(tx+12, y+2, 2, 1, '#fff');
-  // side mirror
-  rect(tx-11, y-6, 1, 2, '#888');
-  rect(tx-12, y-6, 1, 1, '#3a3a3a');
-  // wheels (rotating)
+
+  // === CAB BACK POST (between bed and cab) ===
+  rect(x-5, y-7, 1, 11, '#7a0008');
+
+  // === CAB ROOF (clearly taller than bed/hood) ===
+  rect(x-3, y-9, 7, 1, '#a00008');           // very top edge
+  rect(x-4, y-8, 9, 1, '#c8000a');           // roof
+  rect(x-4, y-7, 9, 1, '#ff4a2a');           // roof highlight stripe
+
+  // === CAB SIDE BODY ===
+  rect(x-4, y-6, 1, 10, '#a00008');          // back edge of cab
+  rect(x-4, y-2, 9, 6, '#c8000a');           // cab side panel below window
+  rect(x-4, y-2, 9, 1, '#a00008');           // shadow under window
+  rect(x-4, y+3, 9, 1, '#7a0008');           // bottom shadow
+
+  // === SIDE WINDOW (square, behind windshield) ===
+  rect(x-3, y-6, 4, 4, '#0a1828');           // glass dark
+  rect(x-3, y-6, 4, 1, '#5a8ac0');           // sky reflection top
+  rect(x-3, y-5, 4, 1, '#7aaae0');           // brighter
+  rect(x-2, y-4, 3, 1, '#3a5a8a');
+  px(x-2, y-5, '#bce8ff');                   // glint
+  // window frame (top + chrome trim)
+  rect(x-3, y-6, 1, 4, '#7a0008');
+  px(x-3, y-7, '#a00008');
+  px(x+1, y-7, '#a00008');
+
+  // === WINDSHIELD (slanted forward) ===
+  // top edge (just under roof front)
+  rect(x+1, y-7, 4, 1, '#a00008');
+  rect(x+1, y-6, 4, 1, '#0a1828');
+  // glass body — slanted, getting wider going down
+  rect(x+1, y-5, 5, 1, '#1a2030');
+  rect(x+1, y-5, 5, 1, '#5a8ac0');           // reflection
+  rect(x, y-4, 6, 1, '#1a2030');
+  rect(x, y-4, 6, 1, '#7aaae0');             // bright reflection
+  rect(x-1, y-3, 7, 1, '#3a5a8a');           // bottom edge
+  // glint on windshield
+  rect(x+2, y-5, 2, 1, '#bce8ff');
+  px(x+3, y-4, '#dcf8ff');
+
+  // === SIDE MIRROR ===
+  rect(x+5, y-5, 1, 1, '#7a0008');           // mirror arm
+  rect(x+6, y-6, 1, 2, '#888');              // housing
+  px(x+6, y-5, '#3a3a3a');
+
+  // === DOOR DETAILS ===
+  // door seam (vertical line on cab door)
+  rect(x, y-1, 1, 5, '#a00008');
+  // door handle
+  rect(x+2, y, 2, 1, '#d8d8d8');
+  px(x+3, y, '#fff8f0');
+  // body line / character crease
+  rect(x-4, y+1, 9, 1, '#a00008');
+
+  // === HOOD (low, in front of cab) ===
+  rect(x+5, y-2, 8, 6, '#c8000a');           // hood body
+  rect(x+5, y-2, 8, 1, '#ff4a2a');           // hood top highlight
+  rect(x+5, y-1, 8, 1, '#d62828');
+  rect(x+5, y+3, 8, 1, '#7a0008');           // hood bottom shadow
+  // hood center ridge
+  rect(x+8, y-2, 1, 5, '#a00008');
+  px(x+8, y-3, '#d8d8d8');                   // hood ornament tip
+  // chrome strip down center
+  px(x+9, y-2, '#e0e0e0');
+  // hood side louvers
+  rect(x+5, y+1, 4, 1, '#a00008');
+  px(x+6, y+1, '#7a0008');
+
+  // === HEADLIGHT (round sealed-beam) ===
+  if (headlightsOn){
+    ctx.fillStyle = 'rgba(255,240,180,0.18)';
+    ctx.beginPath();
+    ctx.moveTo(x+13, y-2); ctx.lineTo(x+44, y-12); ctx.lineTo(x+44, y+10); ctx.lineTo(x+13, y+2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,240,180,0.30)';
+    ctx.beginPath();
+    ctx.moveTo(x+13, y-2); ctx.lineTo(x+30, y-7); ctx.lineTo(x+30, y+5); ctx.lineTo(x+13, y+2); ctx.fill();
+    rect(x+12, y-2, 2, 3, '#fff8b0');
+    px(x+13, y-1, '#ffffff');
+    px(x+13, y, '#fff8c0');
+  } else {
+    rect(x+12, y-2, 2, 3, '#ffd966');
+    px(x+12, y-2, '#fff8a0');
+    px(x+13, y, '#a07810');
+  }
+  // chrome bezel around headlight
+  rect(x+11, y-2, 1, 3, '#a8a8a8');
+  px(x+11, y-3, '#d8d8d8');
+  px(x+14, y-2, '#888');
+
+  // === GRILLE (chrome bars at front) ===
+  rect(x+13, y+1, 1, 2, '#1a1a1a');
+  px(x+13, y+1, '#a8a8a8');
+  px(x+13, y+3, '#a8a8a8');
+
+  // === FRONT BUMPER (chrome) ===
+  rect(x+12, y+4, 3, 2, '#d8d8d8');
+  rect(x+12, y+4, 3, 1, '#fff8f0');
+  px(x+14, y+5, '#5a5a5a');
+
+  // === WHEEL WELLS (curved arches above wheels) ===
+  // rear arch
+  rect(x-11, y+4, 6, 1, '#5a0004');
+  px(x-12, y+4, '#7a0008'); px(x-5, y+4, '#7a0008');
+  px(x-11, y+3, '#5a0004'); px(x-6, y+3, '#5a0004');
+  // front arch
+  rect(x+5, y+4, 6, 1, '#5a0004');
+  px(x+4, y+4, '#7a0008'); px(x+11, y+4, '#7a0008');
+  px(x+5, y+3, '#5a0004'); px(x+10, y+3, '#5a0004');
+
+  // === WHEELS ===
   const spin = (frame/3)|0;
-  drawWheel(tx-9, y+7, spin);
-  drawWheel(tx+6, y+7, spin);
-  // exhaust pipe puff occasionally
+  drawWheel(x-8, y+6, spin);
+  drawWheel(x+8, y+6, spin);
+
   ctx.restore();
 }
+
 function drawWheel(x, y, spin){
-  rect(x-2, y, 5, 5, '#1a1a1a');
-  rect(x-2, y, 5, 1, '#3a3a3a');
-  rect(x-1, y+1, 3, 3, '#3a3a3a');
-  rect(x, y+1, 1, 3, '#888');
-  // spoke rotation
-  const spokes = [[0,1],[1,0],[0,-1],[-1,0]];
-  const s = spokes[spin%4];
-  px(x+s[0], y+2+s[1], '#aaa');
+  // tire (rounded with shading)
+  rect(x-2, y, 5, 4, '#0a0a0a');
+  rect(x-2, y, 5, 1, '#2a2a2a');             // top highlight
+  px(x-2, y, '#0a0a0a');
+  px(x+2, y, '#0a0a0a');
+  px(x-2, y+3, '#0a0a0a');
+  px(x+2, y+3, '#0a0a0a');
+  // hubcap
+  rect(x-1, y+1, 3, 2, '#a8a8a8');
+  px(x-1, y+1, '#d8d8d8');                   // hub highlight
+  px(x+1, y+2, '#5a5a5a');                   // hub shadow
+  // spinning spoke pattern
+  const p = spin % 4;
+  if (p===0){ px(x, y+1, '#fff'); }
+  else if (p===1){ px(x+1, y+1, '#fff'); }
+  else if (p===2){ px(x, y+2, '#fff'); }
+  else { px(x-1, y+1, '#fff'); }
 }
 
-function drawTruck(x, y, dir=3, wagon=true, animals=[], frame=0, headlights=false){
+// wagon flag kept in signature for back-compat but no longer drawn.
+function drawTruck(x, y, dir=3, _wagon=true, animals=[], frame=0, headlights=false){
   if (dir === 2 || dir === 3){
-    drawTruckSide(x, y, dir, frame, headlights);
+    drawTruckSide(x, y, dir, frame, headlights, animals);
   } else {
-    // top/bottom view
-    shadow(x-10, y+10, 20, 3, 0.4);
-    rect(x-9, y-10, 18, 20, '#c8000a');
-    rect(x-9, y-10, 18, 2, '#ff4a2a');
-    rect(x-9, y+8, 18, 2, '#7a0008');
-    rect(x-7, y-8, 14, 6, '#1a2030');
-    rect(x-7, y-8, 14, 1, '#5a8ac0');
-    rect(x-5, y-7, 2, 1, '#bce8ff');
-    // bed lines
-    rect(x-9, y-1, 18, 1, '#7a0008');
-    rect(x-9, y, 18, 1, '#5a0004');
-    // wheels
-    rect(x-9, y-7, 2, 4, '#1a1a1a');
-    rect(x+7, y-7, 2, 4, '#1a1a1a');
-    rect(x-9, y+3, 2, 4, '#1a1a1a');
-    rect(x+7, y+3, 2, 4, '#1a1a1a');
-    if (dir === 1){
-      rect(x-7, y-10, 2, 1, '#ffd966');
-      rect(x+5, y-10, 2, 1, '#ffd966');
-    } else {
-      rect(x-7, y+9, 2, 1, '#ff2020');
-      rect(x+5, y+9, 2, 1, '#ff2020');
-    }
-  }
-
-  // wagon (always pulled behind in driving direction)
-  if (wagon){
-    let wx, wy;
-    if (dir===3){ wx = x-26; wy = y; }
-    else if (dir===2){ wx = x+26; wy = y; }
-    else if (dir===0){ wx = x; wy = y-22; }
-    else { wx = x; wy = y+22; }
-    drawWagon(wx, wy, dir, animals, frame);
-    // hitch
-    if (dir===3) rect(x-16, y+2, 3, 1, '#444');
-    else if (dir===2) rect(x+13, y+2, 3, 1, '#444');
-    else if (dir===0) rect(x-1, y-15, 1, 3, '#444');
-    else rect(x-1, y+12, 1, 3, '#444');
+    drawTruckTopBottom(x, y, dir, frame, animals);
   }
 }
 
-function drawWagon(x, y, dir, animals, frame){
-  const spin = (frame/3)|0;
-  shadow(x-9, y+7, 18, 2, 0.4);
-  // base / wood body
-  rect(x-9, y-3, 18, 10, '#8b5a2b');
-  rect(x-9, y-3, 18, 1, '#c9905a');
-  rect(x-9, y+6, 18, 1, '#5a2a0b');
-  // wood planks (vertical)
-  for (let i=0;i<4;i++) rect(x-7+i*5, y-2, 1, 8, '#5a2a0b');
-  // rails on top
-  rect(x-9, y-6, 18, 1, '#9a6a3a');
-  rect(x-9, y-5, 1, 3, '#9a6a3a');
-  rect(x+8, y-5, 1, 3, '#9a6a3a');
-  // wheels
-  drawWheel(x-8, y+5, spin);
-  drawWheel(x+5, y+5, spin);
-  // little flag with band logo
-  rect(x+8, y-10, 1, 4, '#888');
-  rect(x+9, y-10, 5, 3, '#ff2a6d');
-  rect(x+9, y-10, 5, 1, '#ff6a8d');
-  px(x+11, y-9, '#fff');
+function drawTruckTopBottom(x, y, dir, frame, animals){
+  shadow(x-10, y+11, 20, 3, 0.4);
+  // ── BED (back half — larger rectangle with wood floor) ──
+  rect(x-9, y-1, 18, 11, '#a00008');         // bed sides
+  rect(x-9, y-1, 18, 1, '#c8000a');
+  rect(x-9, y+9, 18, 1, '#5a0004');
+  rect(x-7, y, 14, 9, '#3a200a');            // wood floor
+  for (let i=0; i<4; i++) rect(x-7, y+1+i*2, 14, 1, '#5a3010');
+  // bed top rail
+  rect(x-9, y-1, 18, 1, '#ff4a2a');
 
-  // animals peeking out, looking around
-  for (let i=0;i<animals.length;i++){
-    const sx = x - 6 + (i%3)*5;
-    const sy = y - 5 - (((i/3)|0))*4 + ((frame+i*7)%30 < 15 ? 0 : -1);
+  // ── CAB (smaller rectangle, in front half) ──
+  rect(x-8, y-9, 16, 8, '#c8000a');
+  rect(x-8, y-9, 16, 1, '#ff4a2a');
+  rect(x-8, y-2, 16, 1, '#7a0008');
+  // windshield/roof window from above
+  rect(x-6, y-8, 12, 6, '#1a2030');
+  rect(x-6, y-8, 12, 1, '#5a8ac0');
+  rect(x-6, y-7, 12, 1, '#7aaae0');
+  px(x-4, y-7, '#bce8ff');
+  px(x+2, y-6, '#dcf8ff');
+  // cab roof framing
+  rect(x-6, y-8, 1, 6, '#a00008');
+  rect(x+5, y-8, 1, 6, '#a00008');
+
+  // ── HOOD ornament (front) ──
+  if (dir === 1){
+    // facing UP — headlights at top
+    rect(x-7, y-10, 2, 1, '#ffd966');
+    rect(x+5, y-10, 2, 1, '#ffd966');
+    px(x-7, y-10, '#fff8b0');
+    px(x+5, y-10, '#fff8b0');
+    // grille
+    rect(x-4, y-10, 8, 1, '#3a3a3a');
+  } else {
+    // facing DOWN — taillights at bottom
+    rect(x-7, y+10, 2, 1, '#ff2020');
+    rect(x+5, y+10, 2, 1, '#ff2020');
+    px(x-7, y+10, '#ff8080');
+    px(x+5, y+10, '#ff8080');
+  }
+
+  // ── 4 WHEELS ──
+  rect(x-9, y-7, 2, 4, '#1a1a1a');
+  rect(x+7, y-7, 2, 4, '#1a1a1a');
+  rect(x-9, y+3, 2, 4, '#1a1a1a');
+  rect(x+7, y+3, 2, 4, '#1a1a1a');
+  // hubcap dots
+  px(x-9, y-5, '#888'); px(x+8, y-5, '#888');
+  px(x-9, y+5, '#888'); px(x+8, y+5, '#888');
+
+  // ── ANIMALS IN BED ──
+  for (let i=0; i<animals.length; i++){
+    const sx = x - 6 + (i%3)*4;
+    const sy = y + 2 + ((i/3)|0)*3;
     drawMiniAnimal(animals[i], sx, sy);
   }
 }
