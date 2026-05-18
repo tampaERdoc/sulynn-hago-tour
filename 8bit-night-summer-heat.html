@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Night Summer Heat — 8-bit</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#0a0814;color:#fff;font-family:'Courier New',monospace;min-height:100%;overflow-x:hidden}
+  body{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+  #card{
+    width:100%;max-width:540px;
+    background:linear-gradient(180deg,#1a0824 0%,#2a0a3a 50%,#3a0a2a 100%);
+    border:2px solid #ffcd2a;
+    box-shadow:0 0 30px #ff2a6d44, inset 0 0 0 1px #ff2a6d;
+    padding:24px;text-align:center;border-radius:4px;
+  }
+  h1{
+    margin:0 0 6px;color:#ff2a6d;font-size:24px;letter-spacing:3px;
+    text-shadow:2px 2px 0 #7a0030, 0 0 10px #ff2a6d88;
+  }
+  h2{margin:0 0 4px;color:#ffcd2a;font-size:13px;letter-spacing:4px;text-shadow:1px 1px 0 #5a3a00}
+  .tag{color:#9adcff;font-size:11px;letter-spacing:2px;margin-bottom:20px}
+  .controls{display:flex;justify-content:center;gap:10px;margin:18px 0}
+  button{
+    background:#1a0824;color:#ffcd2a;border:2px solid #ffcd2a;
+    padding:10px 18px;font-family:'Courier New',monospace;font-size:13px;
+    letter-spacing:2px;cursor:pointer;
+    transition:all .15s;font-weight:bold;
+  }
+  button:hover{background:#ffcd2a;color:#1a0824;box-shadow:0 0 12px #ffcd2a88}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  button.active{background:#ff2a6d;color:#fff;border-color:#ff2a6d;box-shadow:0 0 12px #ff2a6d88}
+  #vol{width:100%;margin:8px 0;accent-color:#ff2a6d}
+  label{font-size:11px;color:#9adcff;letter-spacing:1px}
+  canvas{
+    display:block;margin:14px auto 4px;
+    image-rendering:pixelated;background:#000;
+    border:1px solid #ff2a6d;
+    width:480px;max-width:100%;height:auto;
+  }
+  .ch{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #3a1a4a;font-size:11px}
+  .ch span:first-child{color:#9adcff;letter-spacing:2px}
+  .ch span:last-child{color:#ffcd2a;font-family:monospace}
+  #status{font-size:11px;color:#888;margin-top:10px;letter-spacing:2px;min-height:14px}
+  #info{margin-top:18px;font-size:10px;color:#888;line-height:1.6;letter-spacing:1px;text-align:left;padding-top:14px;border-top:1px solid #3a1a4a}
+  #info a{color:#9adcff}
+  .heart{color:#ff2a6d}
+  #title-flash{display:inline-block;animation:flash 1.2s infinite}
+  @keyframes flash{0%,50%{opacity:1}51%,100%{opacity:.3}}
+</style>
+</head>
+<body>
+<div id="card">
+  <h1>SULYNN HAGO</h1>
+  <h2>NIGHT SUMMER HEAT</h2>
+  <div class="tag">— 8-BIT TRIBUTE —</div>
+
+  <canvas id="vis" width="240" height="80"></canvas>
+  <div id="status">PRESS PLAY</div>
+
+  <div class="controls">
+    <button id="play">▶ PLAY</button>
+    <button id="stop" disabled>■ STOP</button>
+    <button id="loop">↻ LOOP: ON</button>
+  </div>
+
+  <label>VOLUME</label>
+  <input id="vol" type="range" min="0" max="100" value="35">
+
+  <div style="margin-top:18px;text-align:left;font-size:11px">
+    <div class="ch"><span>P1 LEAD</span><span id="p1">—</span></div>
+    <div class="ch"><span>P2 ARP</span><span id="p2">—</span></div>
+    <div class="ch"><span>TRI BASS</span><span id="p3">—</span></div>
+    <div class="ch"><span>NOISE</span><span id="p4">—</span></div>
+  </div>
+
+  <div id="info">
+    Original "Night Summer Heat" by <b>Sulynn Hago</b> (Aug 2025, from
+    <i>Faith in the Doghouse</i>). This is an original 4-channel NES-style
+    arrangement inspired by the song's described mood — A-minor,
+    nostalgic-summer / bouncy-bass post-punk, 116 BPM.<br><br>
+    Built with the Web Audio API: 2 pulse waves (12.5% / 25% / 50% duty cycles),
+    1 triangle bass, 1 noise channel for drums. <span class="heart">♥</span>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+// ─── NOTE TABLE (MIDI numbers) ────────────────────────────────────────────
+const N = {};
+const NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+for (let octave = 0; octave <= 8; octave++){
+  for (let i = 0; i < 12; i++){
+    N[NAMES[i].replace('#','s') + octave] = octave * 12 + i + 12; // C0=12 (MIDI)
+  }
+}
+// Friendlier aliases
+N.As = N.As4; // example pattern; we'll reference by full names
+const R = null; // rest
+
+// ─── CHIPTUNE ENGINE ──────────────────────────────────────────────────────
+class Chiptune {
+  constructor(){
+    this.ctx = null;
+    this.master = null;
+    this.scheduled = []; // active oscillators (for stop)
+    this.timers = [];
+    this.tempo = 116;
+    this.beat = 60 / this.tempo;
+    this.playing = false;
+    this.loop = true;
+    this.songDuration = 0;
+    this.startedAt = 0;
+    // visualizer state
+    this.lastNotes = { p1: null, p2: null, tri: null, noise: null };
+    this.lastTimes = { p1: 0, p2: 0, tri: 0, noise: 0 };
+    this.peakNoise = 0;
+  }
+
+  init(){
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.35;
+    // gentle limiter via WaveShaper to keep things from clipping
+    const limiter = this.ctx.createDynamicsCompressor();
+    limiter.threshold.value = -10;
+    limiter.knee.value = 6;
+    limiter.ratio.value = 6;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.1;
+    this.master.connect(limiter);
+    limiter.connect(this.ctx.destination);
+
+    // NES-style pulse waves at 4 duty cycles
+    this.wave12 = this.makePulse(0.125);
+    this.wave25 = this.makePulse(0.25);
+    this.wave50 = this.makePulse(0.5);
+    this.wave75 = this.makePulse(0.75);
+  }
+
+  makePulse(duty){
+    const n = 64;
+    const real = new Float32Array(n);
+    const imag = new Float32Array(n);
+    for (let i = 1; i < n; i++){
+      imag[i] = (2 / (i * Math.PI)) * Math.sin(i * Math.PI * duty);
+    }
+    return this.ctx.createPeriodicWave(real, imag);
+  }
+
+  freq(midi){
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+
+  // Pulse note (square wave with a duty cycle)
+  pulse(channel, wave, midi, t, dur, vol = 0.13, slide = null){
+    if (midi == null) return;
+    const osc = this.ctx.createOscillator();
+    osc.setPeriodicWave(wave);
+    osc.frequency.setValueAtTime(this.freq(midi), t);
+    if (slide != null){
+      osc.frequency.exponentialRampToValueAtTime(this.freq(slide), t + dur * 0.9);
+    }
+    const g = this.ctx.createGain();
+    // sharp NES-style envelope: instant attack, sustain, quick decay at end
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.003);
+    g.gain.setValueAtTime(vol, t + dur * 0.88);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    osc.connect(g);
+    g.connect(this.master);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+    // log for visualizer
+    this.timers.push(setTimeout(() => {
+      this.lastNotes[channel] = midi;
+      this.lastTimes[channel] = performance.now();
+    }, (t - this.ctx.currentTime) * 1000));
+  }
+
+  // Triangle bass — smoother, mellower
+  tri(midi, t, dur, vol = 0.22){
+    if (midi == null) return;
+    const osc = this.ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(this.freq(midi), t);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.003);
+    g.gain.setValueAtTime(vol, t + dur * 0.9);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    osc.connect(g);
+    g.connect(this.master);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+    this.timers.push(setTimeout(() => {
+      this.lastNotes.tri = midi;
+      this.lastTimes.tri = performance.now();
+    }, (t - this.ctx.currentTime) * 1000));
+  }
+
+  // Drum hit — kick / snare / hihat
+  drum(type, t, vol = 1){
+    if (type === 'k'){
+      // Kick: pitched sine drop
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(140, t);
+      osc.frequency.exponentialRampToValueAtTime(38, t + 0.08);
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.55 * vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+      osc.connect(g);
+      g.connect(this.master);
+      osc.start(t);
+      osc.stop(t + 0.15);
+      // Click overlay for snap
+      const cosc = this.ctx.createOscillator();
+      cosc.type = 'square';
+      cosc.frequency.value = 1800;
+      const cg = this.ctx.createGain();
+      cg.gain.setValueAtTime(0.15 * vol, t);
+      cg.gain.exponentialRampToValueAtTime(0.001, t + 0.012);
+      cosc.connect(cg);
+      cg.connect(this.master);
+      cosc.start(t);
+      cosc.stop(t + 0.02);
+    } else if (type === 's'){
+      // Snare: noise + tone
+      const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.15, this.ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      const filt = this.ctx.createBiquadFilter();
+      filt.type = 'highpass';
+      filt.frequency.value = 1400;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.35 * vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
+      src.connect(filt); filt.connect(g); g.connect(this.master);
+      src.start(t); src.stop(t + 0.16);
+      // Snare body tone
+      const osc = this.ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(180, t);
+      osc.frequency.exponentialRampToValueAtTime(80, t + 0.06);
+      const og = this.ctx.createGain();
+      og.gain.setValueAtTime(0.18 * vol, t);
+      og.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+      osc.connect(og); og.connect(this.master);
+      osc.start(t); osc.stop(t + 0.1);
+    } else if (type === 'h' || type === 'H'){
+      // Hi-hat (h=closed, H=open)
+      const dur = type === 'H' ? 0.13 : 0.025;
+      const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.15, this.ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      const filt = this.ctx.createBiquadFilter();
+      filt.type = 'highpass';
+      filt.frequency.value = 7500;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.09 * vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      src.connect(filt); filt.connect(g); g.connect(this.master);
+      src.start(t); src.stop(t + 0.15);
+    } else if (type === 'c'){
+      // Crash cymbal
+      const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.5, this.ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      const filt = this.ctx.createBiquadFilter();
+      filt.type = 'highpass';
+      filt.frequency.value = 4000;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.18 * vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      src.connect(filt); filt.connect(g); g.connect(this.master);
+      src.start(t); src.stop(t + 0.5);
+    }
+    this.timers.push(setTimeout(() => {
+      this.lastNotes.noise = type;
+      this.lastTimes.noise = performance.now();
+      this.peakNoise = 1;
+    }, (t - this.ctx.currentTime) * 1000));
+  }
+
+  // Schedule a voice — an array of [midi-pitch, beats]
+  voice(notes, instr, startTime, vol){
+    let t = startTime;
+    for (const [pitch, beats] of notes){
+      const dur = beats * this.beat;
+      if (pitch != null){
+        if (instr === 'p1') this.pulse('p1', this.wave12, pitch, t, dur * 0.95, vol);
+        else if (instr === 'p2') this.pulse('p2', this.wave25, pitch, t, dur * 0.95, vol);
+        else if (instr === 'p2sq') this.pulse('p2', this.wave50, pitch, t, dur * 0.95, vol);
+        else if (instr === 'tri') this.tri(pitch, t, dur * 0.95, vol);
+      }
+      t += dur;
+    }
+    return t;
+  }
+
+  // Drum pattern — array of [kind, beats]; kind = 'k','s','h','H','c','.'
+  drums(pattern, startTime){
+    let t = startTime;
+    for (const [kind, beats] of pattern){
+      const dur = beats * this.beat;
+      if (kind !== '.' && kind !== R) this.drum(kind, t);
+      t += dur;
+    }
+    return t;
+  }
+
+  stop(){
+    this.playing = false;
+    if (this.ctx){
+      try { this.master.gain.cancelScheduledValues(this.ctx.currentTime); } catch(_){}
+      this.master.gain.setValueAtTime(this.master.gain.value, this.ctx.currentTime);
+      this.master.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.05);
+      setTimeout(() => {
+        try { this.ctx.close(); } catch(_){}
+        this.ctx = null;
+        this.master = null;
+      }, 80);
+    }
+    this.timers.forEach(id => clearTimeout(id));
+    this.timers = [];
+  }
+}
+
+// ─── COMPOSITION ──────────────────────────────────────────────────────────
+// Key: A minor. Tempo: 116 BPM. Inspired by post-punk / nostalgic indie vibe.
+// Chord progression: Am — F — C — G (i — VI — III — VII)
+
+function buildSong(c){
+  // === MELODY MOTIFS (Pulse 1, 12.5% — the lead "voice") ===
+
+  // Intro melody — sparse, dreamy
+  const intro_p1 = [
+    [N.E5, 2], [N.A5, 1], [N.G5, 1],
+    [N.E5, 2], [N.C5, 1], [N.D5, 1],
+    [N.E5, 2], [N.G5, 1], [N.A5, 1],
+    [N.G5, 4],
+  ];
+
+  // Verse melody — yearning, simple
+  const verse_p1 = [
+    // bar 1 (Am)
+    [N.A4, 1], [N.C5, 1], [N.E5, 1], [N.D5, 1],
+    // bar 2 (F)
+    [N.C5, 1], [N.A4, 1], [N.F4, 1.5], [R, 0.5],
+    // bar 3 (C)
+    [N.G4, 1], [N.C5, 1], [N.E5, 1], [N.D5, 1],
+    // bar 4 (G)
+    [N.D5, 1], [N.B4, 1], [N.G4, 1.5], [R, 0.5],
+    // bar 5 (Am) — higher
+    [N.A4, 1], [N.C5, 1], [N.E5, 1], [N.G5, 1],
+    // bar 6 (F)
+    [N.F5, 1], [N.C5, 1], [N.A4, 1.5], [R, 0.5],
+    // bar 7 (C)
+    [N.E5, 1], [N.G5, 1], [N.E5, 1], [N.D5, 1],
+    // bar 8 (G) — lead into chorus
+    [N.D5, 1], [N.B4, 1], [N.A4, 1], [N.A4, 1],
+  ];
+
+  // Chorus melody — big, anthemic
+  const chorus_p1 = [
+    // bar 1 (Am)
+    [N.A5, 1], [N.G5, 1], [N.E5, 1], [N.C5, 1],
+    // bar 2 (F)
+    [N.A4, 1], [N.C5, 1], [N.F5, 1], [N.A5, 1],
+    // bar 3 (C)
+    [N.G5, 1], [N.E5, 1], [N.C5, 1], [N.E5, 1],
+    // bar 4 (G)
+    [N.D5, 1], [N.G5, 1], [N.B5, 1], [N.G5, 1],
+    // bar 5 (Am)
+    [N.A5, 1.5], [N.E5, 0.5], [N.A4, 1.5], [N.C5, 0.5],
+    // bar 6 (F)
+    [N.F5, 1.5], [N.C5, 0.5], [N.A4, 1.5], [N.F5, 0.5],
+    // bar 7 (C) climax
+    [N.E5, 1], [N.G5, 1], [N.C6, 1], [N.G5, 1],
+    // bar 8 (G) resolution
+    [N.G5, 1], [N.D5, 1], [N.G4, 2],
+  ];
+
+  // Bridge melody — different, more contemplative (in Dm-ish space)
+  const bridge_p1 = [
+    [N.D5, 2], [N.F5, 2],
+    [N.A5, 2], [N.G5, 2],
+    [N.F5, 2], [N.E5, 2],
+    [N.D5, 2], [N.C5, 2],
+    [N.D5, 1], [N.E5, 1], [N.F5, 1], [N.G5, 1],
+    [N.A5, 1], [N.G5, 1], [N.F5, 1], [N.E5, 1],
+    [N.D5, 4],
+    [N.E5, 2], [N.G5, 2],
+  ];
+
+  // === ARPEGGIO HARMONY (Pulse 2, 25% — broken chords) ===
+
+  // Generate arpeggio pattern for one bar over a chord (root, third, fifth)
+  function arp(notes, beats = 4){
+    const step = beats / 8; // 8 notes per bar
+    const seq = [];
+    for (let i = 0; i < 8; i++){
+      seq.push([notes[i % notes.length], step]);
+    }
+    return seq;
+  }
+
+  // 4-bar arpeggio cycle: Am F C G
+  const arp_AmFCG = [
+    ...arp([N.A4, N.C5, N.E5]),
+    ...arp([N.F4, N.A4, N.C5]),
+    ...arp([N.G4, N.C5, N.E5]),
+    ...arp([N.G4, N.B4, N.D5]),
+  ];
+
+  // Verse arp (8 bars = 2 cycles of AmFCG)
+  const verse_p2 = [...arp_AmFCG, ...arp_AmFCG];
+
+  // Chorus arp — denser, higher
+  const chorus_p2 = [
+    ...arp([N.A4, N.E5, N.A5], 4),
+    ...arp([N.F4, N.C5, N.F5], 4),
+    ...arp([N.C5, N.G5, N.C6], 4),
+    ...arp([N.G4, N.D5, N.G5], 4),
+    ...arp([N.A4, N.C5, N.E5, N.A5], 4),
+    ...arp([N.F4, N.A4, N.C5, N.F5], 4),
+    ...arp([N.C5, N.E5, N.G5, N.C6], 4),
+    ...arp([N.G4, N.B4, N.D5, N.G5], 4),
+  ];
+
+  // Bridge arp — Dm Am Bb F
+  const bridge_p2 = [
+    ...arp([N.D4, N.F4, N.A4], 4),
+    ...arp([N.A3, N.C4, N.E4], 4),
+    ...arp([N.As4, N.D5, N.F5], 4),
+    ...arp([N.F4, N.A4, N.C5], 4),
+    ...arp([N.D4, N.F4, N.A4, N.D5], 4),
+    ...arp([N.A3, N.C4, N.E4, N.A4], 4),
+    ...arp([N.As4, N.D5, N.F5, N.As5], 4),
+    ...arp([N.F4, N.A4, N.C5, N.F5], 4),
+  ];
+
+  // === BASS (Triangle) — bouncy post-punk root/octave ===
+
+  // Bouncy bass pattern: root-octave alternating 8th notes (8 per bar)
+  function bouncyBass(root, beats = 4){
+    const oct = root + 12;
+    const step = beats / 8;
+    return [
+      [root, step], [oct, step], [root, step], [oct, step],
+      [root, step], [oct, step], [root, step], [oct, step],
+    ];
+  }
+  // Driving bass: root only on every 8th
+  function drivingBass(root, beats = 4){
+    const step = beats / 8;
+    const out = [];
+    for (let i = 0; i < 8; i++) out.push([root, step]);
+    return out;
+  }
+  // Walking bass: root, fifth, octave, fifth (R F O F)
+  function walkBass(root, beats = 4){
+    const oct = root + 12;
+    const fifth = root + 7;
+    const step = beats / 8;
+    return [
+      [root, step], [root, step], [fifth, step], [oct, step],
+      [oct, step], [fifth, step], [root, step], [fifth, step],
+    ];
+  }
+
+  // Intro bass — sparse half notes
+  const intro_tri = [
+    [N.A2, 4], [N.F2, 4], [N.C3, 4], [N.G2, 4],
+  ];
+
+  // Verse bass — bouncy
+  const verse_tri = [
+    ...bouncyBass(N.A2), ...bouncyBass(N.F2),
+    ...bouncyBass(N.C3), ...bouncyBass(N.G2),
+    ...bouncyBass(N.A2), ...bouncyBass(N.F2),
+    ...bouncyBass(N.C3), ...bouncyBass(N.G2),
+  ];
+
+  // Chorus bass — driving + walking on resolution
+  const chorus_tri = [
+    ...drivingBass(N.A2), ...drivingBass(N.F2),
+    ...drivingBass(N.C3), ...drivingBass(N.G2),
+    ...drivingBass(N.A2), ...drivingBass(N.F2),
+    ...walkBass(N.C3), ...walkBass(N.G2),
+  ];
+
+  // Bridge bass — sparser, half-note feel
+  const bridge_tri = [
+    [N.D2, 2], [N.A2, 2],
+    [N.A2, 2], [N.E2, 2],
+    [N.As2, 2], [N.F2, 2],
+    [N.F2, 2], [N.C3, 2],
+    ...drivingBass(N.D2), ...drivingBass(N.A2),
+    ...drivingBass(N.As2), ...drivingBass(N.F2),
+  ];
+
+  // === DRUMS (Noise) ===
+
+  // Standard rock beat (4 beats, 1 bar)
+  // K-h-S-h-K-h-S-h with h on every 8th
+  const beat_basic = [
+    ['k',0.5],['h',0.5],['s',0.5],['h',0.5],
+    ['k',0.5],['h',0.5],['s',0.5],['h',0.5],
+  ];
+  // Verse pattern (8 bars)
+  const verse_drums = [];
+  for (let i = 0; i < 8; i++) verse_drums.push(...beat_basic);
+
+  // Chorus pattern — busier, kick on 1 and 2-and
+  const beat_chorus = [
+    ['k',0.5],['h',0.5],['s',0.5],['h',0.5],
+    ['k',0.25],['k',0.25],['h',0.5],['s',0.5],['h',0.5],
+  ];
+  const chorus_drums = [];
+  for (let i = 0; i < 7; i++) chorus_drums.push(...beat_chorus);
+  // Crash + roll on bar 8
+  chorus_drums.push(['c',0.5],['h',0.5],['s',0.5],['h',0.5],
+    ['s',0.25],['s',0.25],['s',0.25],['s',0.25],['c',1]);
+
+  // Bridge — half-time feel (kick on 1, snare on 3)
+  const beat_bridge = [
+    ['k',1],['h',1],['s',1],['h',1],
+  ];
+  const bridge_drums = [];
+  for (let i = 0; i < 8; i++) bridge_drums.push(...beat_bridge);
+
+  // Intro — just hihat
+  const intro_drums = [];
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 8; j++) intro_drums.push(['h',0.5]);
+
+  // Outro — final crash + fade
+  const outro_drums = [
+    ['c',2],['k',1],['s',1],
+    ['k',1],['s',1],['k',1],['c',1],
+  ];
+
+  // === SONG STRUCTURE ===
+  const beat = c.beat;
+  const W = 4 * beat;  // 1 bar = 4 beats
+  let t = c.ctx.currentTime + 0.15;
+  const startT = t;
+
+  // Helper to schedule a section across all 4 voices simultaneously
+  function section(name, bars, melody, arp, bass, drums, opts = {}){
+    const len = bars * W;
+    if (melody) c.voice(melody, 'p1', t, opts.melVol || 0.13);
+    if (arp)    c.voice(arp,    'p2', t, opts.arpVol || 0.08);
+    if (bass)   c.voice(bass,   'tri', t, opts.bassVol || 0.20);
+    if (drums)  c.drums(drums, t);
+    t += len;
+  }
+
+  // ── INTRO ── 4 bars
+  section('intro', 4, intro_p1, null, intro_tri, intro_drums,
+    { melVol: 0.11, bassVol: 0.16 });
+
+  // ── VERSE 1 ── 8 bars
+  section('verse1', 8, verse_p1, verse_p2, verse_tri, verse_drums,
+    { arpVol: 0.06 });
+
+  // ── CHORUS 1 ── 8 bars
+  section('chorus1', 8, chorus_p1, chorus_p2, chorus_tri, chorus_drums,
+    { melVol: 0.15, arpVol: 0.08, bassVol: 0.23 });
+
+  // ── VERSE 2 ── 8 bars (slight variation: octave-up arp)
+  const verse_p2_up = verse_p2.map(n => n[0] != null ? [n[0]+12, n[1]] : n);
+  section('verse2', 8, verse_p1, verse_p2_up, verse_tri, verse_drums);
+
+  // ── CHORUS 2 ── 8 bars
+  section('chorus2', 8, chorus_p1, chorus_p2, chorus_tri, chorus_drums,
+    { melVol: 0.15, arpVol: 0.08, bassVol: 0.23 });
+
+  // ── BRIDGE ── 8 bars
+  section('bridge', 8, bridge_p1, bridge_p2, bridge_tri, bridge_drums,
+    { melVol: 0.12, arpVol: 0.07 });
+
+  // ── FINAL CHORUS ── 8 bars
+  section('final', 8, chorus_p1, chorus_p2, chorus_tri, chorus_drums,
+    { melVol: 0.17, arpVol: 0.09, bassVol: 0.24 });
+
+  // ── OUTRO ── 4 bars — winding-down arpeggio + crash
+  const outro_p1 = [
+    [N.A5, 2], [N.E5, 2],
+    [N.C5, 2], [N.A4, 2],
+    [N.E4, 2], [N.A4, 2],
+    [N.A4, 8],
+  ];
+  const outro_tri = [
+    [N.A2, 4], [N.E2, 4],
+    [N.A2, 4], [N.A2, 4],
+  ];
+  section('outro', 4, outro_p1, null, outro_tri, outro_drums,
+    { melVol: 0.11, bassVol: 0.18 });
+
+  c.songDuration = t - startT;
+  c.endTime = t;
+  return c.songDuration;
+}
+
+// ─── UI ───────────────────────────────────────────────────────────────────
+const c = new Chiptune();
+const $play = document.getElementById('play');
+const $stop = document.getElementById('stop');
+const $loop = document.getElementById('loop');
+const $vol = document.getElementById('vol');
+const $status = document.getElementById('status');
+const $p1 = document.getElementById('p1');
+const $p2 = document.getElementById('p2');
+const $p3 = document.getElementById('p3');
+const $p4 = document.getElementById('p4');
+const $vis = document.getElementById('vis');
+const vctx = $vis.getContext('2d');
+vctx.imageSmoothingEnabled = false;
+
+function midiName(midi){
+  if (midi == null) return '—';
+  const note = NAMES[midi % 12];
+  const oct = Math.floor(midi / 12) - 1;
+  return note + oct;
+}
+
+let loopTimerId = null;
+
+function play(){
+  c.init();
+  if (c.ctx.state === 'suspended') c.ctx.resume();
+  c.master.gain.cancelScheduledValues(c.ctx.currentTime);
+  c.master.gain.setValueAtTime($vol.value / 100 * 0.7, c.ctx.currentTime);
+  c.playing = true;
+  const dur = buildSong(c);
+  $status.textContent = '♪ NOW PLAYING ♪';
+  $play.disabled = true;
+  $stop.disabled = false;
+
+  // Schedule loop or end
+  if (loopTimerId) clearTimeout(loopTimerId);
+  loopTimerId = setTimeout(() => {
+    if (c.loop && c.playing){
+      play();
+    } else {
+      stop();
+    }
+  }, (dur + 0.3) * 1000);
+}
+
+function stop(){
+  c.playing = false;
+  if (loopTimerId){ clearTimeout(loopTimerId); loopTimerId = null; }
+  c.stop();
+  $status.textContent = 'STOPPED';
+  $play.disabled = false;
+  $stop.disabled = true;
+  $p1.textContent = '—'; $p2.textContent = '—';
+  $p3.textContent = '—'; $p4.textContent = '—';
+}
+
+$play.addEventListener('click', play);
+$stop.addEventListener('click', stop);
+$loop.addEventListener('click', () => {
+  c.loop = !c.loop;
+  $loop.textContent = '↻ LOOP: ' + (c.loop ? 'ON' : 'OFF');
+  $loop.classList.toggle('active', c.loop);
+});
+$vol.addEventListener('input', () => {
+  if (c.master){
+    c.master.gain.setValueAtTime($vol.value / 100 * 0.7, c.ctx.currentTime);
+  }
+});
+
+// ─── VISUALIZER ──────────────────────────────────────────────────────────
+function visTick(){
+  // Update channel display text
+  $p1.textContent = midiName(c.lastNotes.p1);
+  $p2.textContent = midiName(c.lastNotes.p2);
+  $p3.textContent = midiName(c.lastNotes.tri);
+  $p4.textContent = c.lastNotes.noise ? (
+    c.lastNotes.noise === 'k' ? 'KICK' :
+    c.lastNotes.noise === 's' ? 'SNARE' :
+    c.lastNotes.noise === 'c' ? 'CRASH' : 'HAT'
+  ) : '—';
+
+  // Draw bars
+  const W_ = $vis.width, H_ = $vis.height;
+  // Background gradient (sunset stripes)
+  for (let y = 0; y < H_; y++){
+    const t = y / H_;
+    const r = (0x1a + (0x40-0x1a)*t)|0;
+    const g = (0x08 + (0x10-0x08)*t)|0;
+    const b = (0x24 + (0x30-0x24)*t)|0;
+    vctx.fillStyle = `rgb(${r},${g},${b})`;
+    vctx.fillRect(0, y, W_, 1);
+  }
+  // grid lines
+  vctx.strokeStyle = '#3a1a4a';
+  vctx.lineWidth = 1;
+  for (let i = 0; i < 8; i++){
+    vctx.beginPath();
+    vctx.moveTo(i * W_/8, 0); vctx.lineTo(i * W_/8, H_);
+    vctx.stroke();
+  }
+
+  const now = performance.now();
+  const channels = [
+    { name: 'P1', val: c.lastNotes.p1, t: c.lastTimes.p1, color: '#ff2a6d' },
+    { name: 'P2', val: c.lastNotes.p2, t: c.lastTimes.p2, color: '#ffcd2a' },
+    { name: 'TRI', val: c.lastNotes.tri, t: c.lastTimes.tri, color: '#2adc6a' },
+    { name: 'NSE', val: c.lastNotes.noise, t: c.lastTimes.noise, color: '#9adcff' },
+  ];
+  const bw = W_ / 4;
+  for (let i = 0; i < 4; i++){
+    const ch = channels[i];
+    const age = now - ch.t;
+    const energy = Math.max(0, 1 - age / 200);
+    let h = 4;
+    if (ch.val != null){
+      const m = typeof ch.val === 'number' ? ch.val : 60;
+      h = 4 + ((m - 30) % 60) * 1.0 * Math.max(0.3, energy);
+      h = Math.max(4, Math.min(H_ - 4, h));
+    } else {
+      h = 4 * (1 + energy);
+    }
+    const x = i * bw + 4;
+    const w = bw - 8;
+    const y = H_ - h - 2;
+    // bar
+    vctx.fillStyle = ch.color + '44';
+    vctx.fillRect(x, y, w, h);
+    vctx.fillStyle = ch.color;
+    vctx.fillRect(x, y, w, 3);
+    // label
+    vctx.fillStyle = '#fff';
+    vctx.font = '10px monospace';
+    vctx.fillText(ch.name, x + 2, H_ - 2);
+  }
+
+  requestAnimationFrame(visTick);
+}
+visTick();
+
+// auto-set loop button as "active"
+$loop.classList.add('active');
+})();
+</script>
+</body>
+</html>
