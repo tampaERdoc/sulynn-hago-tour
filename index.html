@@ -853,187 +853,490 @@ function drawMiniAnimal(a, x, y){
 }
 
 /* ───────────────────────── ANIMALS (BIGGER, BETTER) ───────────────────────── */
+// === 16-BIT ANIMAL SPRITES — outlined, 3-shade, anatomically detailed ===
+// Each sprite has a 1px dark outline around its silhouette and proper shading.
 function drawAlligator(x,y,frame=0){
   const open = (frame%60 < 10) ? 1 : 0;
-  // tail
-  rect(x-14, y+6, 6, 2, '#3a8b3a');
-  rect(x-14, y+6, 6, 1, '#5aab5a');
-  rect(x-16, y+7, 2, 1, '#3a8b3a');
-  // body
-  rect(x-9, y+3, 16, 6, '#3a8b3a');
-  rect(x-9, y+3, 16, 1, '#5aab5a');
-  rect(x-9, y+8, 16, 1, '#1a4a1a');
-  // back ridges
-  for (let i=0;i<7;i++) px(x-7+i*2, y+2, '#2a6a2a');
-  // snout
-  rect(x+7, y+4, 7, 3+open, '#3a8b3a');
-  rect(x+7, y+4, 7, 1, '#5aab5a');
+  const OUT = '#06140a';
+  const D = '#1a4a1a';     // gator dark
+  const M = '#3a8b3a';     // gator base
+  const L = '#5aab5a';     // gator highlight
+  const B = '#7acb6a';     // bright
+
+  // ── SHADOW ──
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(x-15, y+12, 30, 1);
+
+  // ── TAIL (curving to the left) ──
+  rect(x-18, y+8, 2, 1, OUT);                       // tail tip outline
+  rect(x-17, y+7, 1, 3, OUT);
+  rect(x-16, y+6, 1, 4, OUT);
+  rect(x-15, y+5, 1, 5, OUT);
+  rect(x-14, y+5, 12, 1, OUT);                      // tail top outline
+  rect(x-14, y+9, 12, 1, OUT);                      // tail bottom outline
+  rect(x-17, y+8, 1, 1, M);                         // tail tip
+  rect(x-15, y+7, 1, 2, M);
+  rect(x-14, y+6, 12, 3, M);                        // tail body
+  rect(x-14, y+6, 12, 1, L);                        // tail top highlight
+  rect(x-14, y+8, 12, 1, D);                        // tail bottom shadow
+
+  // ── BODY ──
+  rect(x-9, y+2, 16, 1, OUT);                       // back outline
+  rect(x-9, y+9, 16, 1, OUT);                       // belly outline
+  rect(x-10, y+3, 1, 6, OUT);                       // back-left
+  rect(x+7, y+3, 1, 6, OUT);                        // back-right (joins snout)
+  rect(x-9, y+3, 16, 6, M);                         // body fill
+  rect(x-9, y+3, 16, 1, L);                         // back highlight
+  rect(x-9, y+8, 16, 1, D);                         // belly shadow
+  rect(x-9, y+7, 16, 1, '#2a6a2a');                 // mid shadow band
+  // belly scales (lighter dots in a row)
+  for (let i=0; i<5; i++) px(x-7+i*4, y+8, M);
+
+  // ── BACK SCUTES (armored ridges) ──
+  for (let i=0; i<8; i++){
+    const sx = x-7+i*2;
+    px(sx, y+1, OUT);
+    px(sx, y+2, D);
+  }
+  px(x-7, y+2, B); px(x-3, y+2, B); px(x+1, y+2, B); px(x+5, y+2, B);
+
+  // ── SNOUT (long, with teeth when open) ──
+  rect(x+8, y+3, 7, 1, OUT);                        // snout top
+  rect(x+8, y+7+open, 7, 1, OUT);                   // snout bottom
+  rect(x+15, y+4, 1, 3+open, OUT);                  // snout tip
+  rect(x+8, y+4, 7, 3+open, M);                     // snout fill
+  rect(x+8, y+4, 7, 1, L);                          // top highlight
+  rect(x+8, y+6+open, 7, 1, D);                     // bottom shadow
+  // nostrils on top
+  px(x+13, y+4, OUT);
+  px(x+14, y+4, OUT);
   // teeth when open
   if (open){
-    rect(x+8, y+6, 1, 1, '#fff'); rect(x+10, y+6, 1, 1, '#fff'); rect(x+12, y+6, 1, 1, '#fff');
+    rect(x+8, y+6, 7, 1, '#1a3a1a');                // mouth interior
+    for (let i=0; i<4; i++) px(x+9+i*2, y+5, '#fff');
+    for (let i=0; i<3; i++) px(x+10+i*2, y+7, '#fff');
+  } else {
+    // closed mouth line
+    rect(x+9, y+6, 6, 1, '#1a3a1a');
   }
-  // eye
-  rect(x+5, y+1, 2, 2, '#3a8b3a');
-  rect(x+5, y+1, 2, 1, '#5aab5a');
-  px(x+5, y+2, '#000'); px(x+6, y+2, '#ffd966'); // yellow eye!
-  // nostril
-  px(x+13, y+5, '#000');
-  // legs
-  rect(x-6, y+9, 2, 2, '#2a6a2a');
-  rect(x+3, y+9, 2, 2, '#2a6a2a');
-  px(x-6, y+11, '#1a4a1a'); px(x-4, y+11, '#1a4a1a');
-  px(x+3, y+11, '#1a4a1a'); px(x+5, y+11, '#1a4a1a');
+
+  // ── EYE (raised, yellow with vertical pupil) ──
+  rect(x+4, y, 3, 1, OUT);                          // eye socket top
+  rect(x+4, y+1, 1, 2, OUT);
+  rect(x+6, y+1, 1, 2, OUT);
+  rect(x+5, y+1, 1, 2, '#ffd966');                  // yellow sclera
+  px(x+5, y+1, '#fff8a0');                          // glint
+  px(x+5, y+2, OUT);                                // vertical pupil slit
+
+  // ── LEGS (with claws) ──
+  // front leg
+  rect(x+3, y+10, 1, 3, OUT);
+  rect(x+5, y+10, 1, 3, OUT);
+  rect(x+3, y+13, 3, 1, OUT);
+  rect(x+4, y+10, 1, 3, D);
+  px(x+3, y+13, '#fff');                            // claw
+  px(x+5, y+13, '#fff');
+  // back leg
+  rect(x-6, y+10, 1, 3, OUT);
+  rect(x-4, y+10, 1, 3, OUT);
+  rect(x-6, y+13, 3, 1, OUT);
+  rect(x-5, y+10, 1, 3, D);
+  px(x-6, y+13, '#fff');
+  px(x-4, y+13, '#fff');
 }
+
 function drawRaccoon(x,y,frame=0){
-  // tail
-  rect(x+7, y+3, 4, 3, '#888');
-  rect(x+10, y+2, 3, 3, '#666');
-  rect(x+8, y+3, 2, 1, '#222'); // tail ring
-  rect(x+11, y+2, 2, 1, '#222');
-  // body
-  rect(x-5, y+3, 12, 8, '#888');
-  rect(x-5, y+3, 12, 1, '#aaa');
-  rect(x-5, y+10, 12, 1, '#555');
-  // body fur tufts
-  px(x-5, y+5, '#aaa'); px(x+2, y+5, '#aaa');
-  // head
-  rect(x-7, y, 7, 7, '#aaa');
-  rect(x-7, y, 7, 1, '#ccc');
-  // ears
-  rect(x-8, y-2, 2, 2, '#888');
-  rect(x-2, y-2, 2, 2, '#888');
-  px(x-7, y-1, '#1a1a1a');
-  px(x-1, y-1, '#1a1a1a');
-  // mask
-  rect(x-6, y+2, 6, 2, '#1a1a1a');
-  // eyes
-  px(x-5, y+3, '#fff'); px(x-2, y+3, '#fff');
-  px(x-5, y+3, '#fff');
+  const OUT = '#0a0a0a';
+  const D = '#444';
+  const M = '#888';
+  const L = '#bbb';
+
+  // ── SHADOW ──
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(x-7, y+13, 14, 1);
+
+  // ── TAIL (with rings) ──
+  rect(x+6, y+2, 1, 5, OUT);                        // tail outline
+  rect(x+13, y+1, 1, 5, OUT);
+  rect(x+7, y+1, 6, 1, OUT);
+  rect(x+7, y+6, 6, 1, OUT);
+  rect(x+7, y+2, 6, 4, L);                          // tail fill
+  rect(x+8, y+2, 1, 4, D);                          // tail ring 1
+  rect(x+10, y+2, 1, 4, D);                         // tail ring 2
+  rect(x+12, y+2, 1, 4, '#222');                    // tail tip ring
+  rect(x+7, y+5, 6, 1, D);                          // tail bottom shadow
+
+  // ── BODY ──
+  rect(x-5, y+2, 12, 1, OUT);                       // back outline
+  rect(x-5, y+11, 12, 1, OUT);                      // belly outline
+  rect(x-6, y+3, 1, 8, OUT);                        // body left
+  rect(x+7, y+3, 1, 8, OUT);                        // body right
+  rect(x-5, y+3, 12, 8, M);                         // body fill
+  rect(x-5, y+3, 12, 1, L);                         // back highlight
+  rect(x-5, y+10, 12, 1, D);                        // belly shadow
+  // fur tufts
+  px(x-3, y+5, L); px(x, y+6, L); px(x+3, y+5, L);
+  px(x-3, y+8, D); px(x+1, y+7, D);
+
+  // ── HEAD ──
+  rect(x-8, y-1, 6, 1, OUT);                        // head top
+  rect(x-9, y, 1, 7, OUT);                          // head left
+  rect(x-2, y, 1, 7, OUT);                          // head right
+  rect(x-8, y+7, 6, 1, OUT);                        // head bottom
+  rect(x-8, y, 6, 7, L);                            // head fill (lighter)
+  rect(x-8, y, 6, 1, '#dde');                       // forehead highlight
+  // ears (pointed)
+  rect(x-9, y-3, 1, 2, OUT);
+  rect(x-7, y-3, 1, 2, OUT);
+  rect(x-8, y-3, 1, 2, M);
+  rect(x-3, y-3, 1, 2, OUT);
+  rect(x-1, y-3, 1, 2, OUT);
+  rect(x-2, y-3, 1, 2, M);
+  // bandit mask
+  rect(x-7, y+2, 5, 2, OUT);
+  rect(x-7, y+3, 5, 1, '#1a1a1a');
+  // eye whites in the mask
+  px(x-6, y+3, '#fff');
+  px(x-3, y+3, '#fff');
+  // pupils
+  px(x-6, y+3, '#0a0a0a');                          // wait, override
+  px(x-6, y+3, '#fff');                             // reaffirm white
+  // small dark pupils
+  px(x-5, y+3, OUT);
   // nose
-  rect(x-4, y+4, 2, 1, '#1a1a1a');
-  px(x-3, y+5, '#000');
-  // legs
-  rect(x-4, y+10, 2, 2, '#555');
-  rect(x+3, y+10, 2, 2, '#555');
+  rect(x-6, y+5, 2, 1, OUT);
+  px(x-6, y+5, '#1a1a1a');
+  // mouth
+  px(x-6, y+6, '#3a1010');
+  px(x-5, y+6, '#3a1010');
+
+  // ── LEGS ──
+  rect(x-4, y+11, 1, 3, OUT);
+  rect(x-2, y+11, 1, 3, OUT);
+  rect(x-3, y+11, 1, 3, D);
+  rect(x-4, y+13, 2, 1, OUT);
+  rect(x+3, y+11, 1, 3, OUT);
+  rect(x+5, y+11, 1, 3, OUT);
+  rect(x+4, y+11, 1, 3, D);
+  rect(x+3, y+13, 2, 1, OUT);
 }
+
 function drawPelican(x,y,frame=0){
   const blink = (frame%80 < 4) ? 1 : 0;
-  // body
-  rect(x-5, y+3, 11, 7, '#f8f8f8');
-  rect(x-5, y+3, 11, 1, '#fff');
-  rect(x-5, y+9, 11, 1, '#c8c8c8');
-  // wing
-  rect(x-7, y+4, 3, 4, '#e0e0e0');
-  rect(x-7, y+4, 3, 1, '#f0f0f0');
-  px(x-6, y+7, '#888'); // wing tip detail
-  // head
-  rect(x+3, y-2, 5, 5, '#f8f8f8');
-  rect(x+3, y-2, 5, 1, '#fff');
-  // bill (long)
-  rect(x+5, y+2, 8, 2, '#e8a020');
-  rect(x+5, y+2, 8, 1, '#ffc040');
-  rect(x+5, y+4, 7, 2, '#c08000'); // pouch
-  rect(x+5, y+5, 6, 1, '#a06000');
+  const OUT = '#0a0a0a';
+  const D = '#a8a8a8';
+  const M = '#e8e8e8';
+  const L = '#fff';
+  const BD = '#a06000';   // bill dark
+  const BM = '#e8a020';   // bill base
+  const BL = '#ffc040';   // bill light
+
+  // ── SHADOW ──
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(x-7, y+15, 16, 1);
+
+  // ── BODY ──
+  rect(x-5, y+2, 11, 1, OUT);
+  rect(x-5, y+10, 11, 1, OUT);
+  rect(x-6, y+3, 1, 7, OUT);
+  rect(x+6, y+3, 1, 7, OUT);
+  rect(x-5, y+3, 11, 7, M);
+  rect(x-5, y+3, 11, 1, L);                         // back highlight
+  rect(x-5, y+9, 11, 1, D);                         // belly shadow
+
+  // ── WING (folded along side) ──
+  rect(x-8, y+3, 1, 5, OUT);
+  rect(x-7, y+3, 1, 1, OUT);
+  rect(x-7, y+8, 1, 1, OUT);
+  rect(x-7, y+4, 1, 4, M);
+  px(x-7, y+4, L);
+  px(x-7, y+7, D);
+  // wing feather lines
+  px(x-6, y+5, D); px(x-6, y+7, D);
+  px(x-6, y+8, OUT);                                // wing tip
+
+  // ── NECK + HEAD ──
+  rect(x+3, y-3, 5, 1, OUT);                        // head top
+  rect(x+2, y-2, 1, 5, OUT);                        // head left
+  rect(x+8, y-2, 1, 4, OUT);                        // head right
+  rect(x+3, y+2, 2, 1, OUT);                        // chin
+  rect(x+3, y-2, 5, 5, M);                          // head fill
+  rect(x+3, y-2, 5, 1, L);                          // crown highlight
   // eye
-  if (!blink) { px(x+6, y, '#000'); px(x+6, y, '#000'); }
-  else { rect(x+5, y, 2, 1, '#000'); }
-  // legs
-  rect(x-3, y+10, 1, 3, '#e8a020');
-  rect(x+2, y+10, 1, 3, '#e8a020');
-  rect(x-4, y+13, 3, 1, '#e8a020');
-  rect(x+1, y+13, 3, 1, '#e8a020');
+  if (!blink){
+    rect(x+5, y-1, 2, 1, '#fff');
+    px(x+6, y-1, OUT);                              // pupil
+  } else {
+    rect(x+5, y-1, 2, 1, OUT);
+  }
+  // brow
+  px(x+5, y-2, '#888');
+
+  // ── BILL (long, with pouch) ──
+  rect(x+8, y+1, 8, 1, OUT);                        // bill top edge
+  rect(x+8, y+6, 8, 1, OUT);                        // bill bottom edge
+  rect(x+15, y+2, 1, 4, OUT);                       // bill tip
+  rect(x+8, y+2, 7, 1, BL);                         // top of bill
+  rect(x+8, y+3, 7, 1, BM);                         // mid bill
+  rect(x+8, y+4, 7, 2, BD);                         // pouch (darker)
+  // hook at tip
+  px(x+14, y+2, '#fff8d0');
+  // mouth line
+  rect(x+8, y+3, 7, 1, BM);
+  px(x+9, y+5, OUT);
+
+  // ── LEGS (orange/webbed) ──
+  rect(x-3, y+11, 1, 3, OUT);
+  rect(x+1, y+11, 1, 3, OUT);
+  rect(x-3, y+11, 1, 3, BM);
+  rect(x+1, y+11, 1, 3, BM);
+  // webbed feet
+  rect(x-4, y+14, 3, 1, OUT);
+  rect(x+0, y+14, 3, 1, OUT);
+  rect(x-4, y+14, 3, 1, BD);
+  rect(x+0, y+14, 3, 1, BD);
 }
+
 function drawLonghorn(x,y,frame=0){
-  // body
-  rect(x-7, y+3, 14, 7, '#8b5a2b');
-  rect(x-7, y+3, 14, 1, '#a87a4a');
-  rect(x-7, y+9, 14, 1, '#5a3a1a');
-  // body spots
-  px(x-4, y+5, '#a87a4a'); px(x+2, y+6, '#a87a4a'); px(x-1, y+7, '#a87a4a');
-  // head
-  rect(x+5, y, 6, 6, '#8b5a2b');
-  rect(x+5, y, 6, 1, '#a87a4a');
-  // HUGE horns
-  for (let i=0;i<10;i++) rect(x-2+i, y-2, 1, 1, '#f0e0c0');
-  rect(x+8, y-2, 10, 1, '#f0e0c0');
-  rect(x-2, y-3, 2, 1, '#f0e0c0'); rect(x+16, y-3, 2, 1, '#f0e0c0');
-  rect(x-3, y-2, 1, 2, '#d0c0a0'); rect(x+18, y-2, 1, 2, '#d0c0a0');
-  // horn shading
-  for (let i=0;i<8;i++) px(x+i, y-1, '#c0a070');
-  // eye
-  px(x+7, y+2, '#000'); px(x+8, y+2, '#fff');
-  // nose
-  rect(x+9, y+4, 2, 1, '#1a1a1a');
-  px(x+9, y+5, '#000');
-  // legs
-  rect(x-6, y+10, 2, 3, '#5a3a1a');
-  rect(x-2, y+10, 2, 3, '#5a3a1a');
-  rect(x+2, y+10, 2, 3, '#5a3a1a');
-  rect(x+5, y+10, 2, 3, '#5a3a1a');
-  // tail
-  rect(x-9, y+4, 2, 4, '#5a3a1a');
-  px(x-9, y+8, '#3a2a0a');
+  const OUT = '#1a0a05';
+  const D = '#5a3a1a';
+  const M = '#8b5a2b';
+  const L = '#b88450';
+  const HD = '#a09050';     // horn shadow
+  const HM = '#e0d090';     // horn mid
+  const HL = '#fff8d0';     // horn highlight
+
+  // ── SHADOW ──
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(x-9, y+14, 20, 1);
+
+  // ── TAIL ──
+  rect(x-11, y+4, 1, 5, OUT);
+  rect(x-10, y+8, 1, 1, OUT);
+  rect(x-11, y+9, 2, 1, OUT);
+  rect(x-10, y+4, 1, 4, D);
+  px(x-10, y+8, '#1a0a05');                         // tail tuft
+
+  // ── BODY ──
+  rect(x-9, y+2, 16, 1, OUT);
+  rect(x-9, y+10, 16, 1, OUT);
+  rect(x-10, y+3, 1, 7, OUT);
+  rect(x+7, y+3, 1, 7, OUT);
+  rect(x-9, y+3, 16, 7, M);
+  rect(x-9, y+3, 16, 1, L);                         // top highlight
+  rect(x-9, y+9, 16, 1, D);                         // belly shadow
+  // hide spots (white markings)
+  rect(x-6, y+5, 3, 2, L);
+  rect(x+2, y+6, 2, 2, L);
+  px(x-1, y+8, L);
+
+  // ── HEAD ──
+  rect(x+5, y-1, 5, 1, OUT);
+  rect(x+5, y+6, 5, 1, OUT);
+  rect(x+4, y, 1, 6, OUT);
+  rect(x+10, y, 1, 6, OUT);
+  rect(x+5, y, 5, 6, M);
+  rect(x+5, y, 5, 1, L);                            // forehead highlight
+  rect(x+5, y+5, 5, 1, D);                          // chin shadow
+  // hide blaze (white forehead stripe)
+  rect(x+7, y, 1, 4, L);
+
+  // ── MASSIVE HORNS (sweeping outward) ──
+  // left horn (going left)
+  rect(x-3, y-3, 1, 1, OUT);                        // tip
+  rect(x-2, y-3, 7, 1, OUT);                        // top edge
+  rect(x-2, y-2, 7, 1, HL);                         // highlight top
+  rect(x-2, y-1, 7, 1, HM);                         // mid
+  rect(x-2, y, 7, 1, OUT);                          // bottom edge
+  rect(x-3, y-2, 1, 2, HM);                         // sharp tip
+  // right horn (going right)
+  rect(x+16, y-3, 1, 1, OUT);                       // tip
+  rect(x+10, y-3, 6, 1, OUT);                       // top edge
+  rect(x+10, y-2, 6, 1, HL);                        // highlight
+  rect(x+10, y-1, 6, 1, HM);                        // mid
+  rect(x+10, y, 6, 1, OUT);                         // bottom edge
+  rect(x+16, y-2, 1, 2, HM);                        // sharp tip
+
+  // ── EYE ──
+  rect(x+7, y+2, 2, 1, OUT);
+  px(x+7, y+2, '#fff');
+  px(x+8, y+2, OUT);
+
+  // ── NOSE / MUZZLE ──
+  rect(x+8, y+4, 2, 1, OUT);
+  px(x+8, y+4, '#1a1a1a');
+  px(x+9, y+4, '#3a3a3a');
+  // nostril
+  px(x+9, y+5, OUT);
+
+  // ── LEGS (four with hooves) ──
+  for (let i=0; i<4; i++){
+    const lx = x-6+i*4;
+    rect(lx, y+11, 1, 3, OUT);
+    rect(lx+1, y+11, 1, 3, OUT);
+    rect(lx, y+11, 2, 3, D);
+    rect(lx, y+13, 2, 1, '#0a0a0a');                // hoof
+  }
 }
+
 function drawBighorn(x,y,frame=0){
-  // body (woolly)
-  rect(x-6, y+3, 12, 7, '#d8c8b0');
-  rect(x-6, y+3, 12, 1, '#f0e0c8');
-  rect(x-6, y+9, 12, 1, '#a89880');
-  // wool tufts
-  for (let i=0;i<6;i++) px(x-5+i*2, y+5, '#f0e0c8');
-  for (let i=0;i<6;i++) px(x-4+i*2, y+7, '#a89880');
-  // head
-  rect(x+4, y+1, 5, 6, '#a89070');
-  rect(x+4, y+1, 5, 1, '#c8b090');
-  // BIG curled horns (front-facing curl)
-  rect(x+2, y-2, 3, 1, '#6a4a2a');
-  rect(x+1, y-1, 1, 2, '#6a4a2a');
-  rect(x+5, y-2, 3, 1, '#6a4a2a');
-  rect(x+8, y-1, 1, 2, '#6a4a2a');
-  rect(x+1, y+1, 1, 2, '#5a3a1a');
-  rect(x+8, y+1, 1, 2, '#5a3a1a');
-  // horn ridges
-  rect(x+2, y-1, 1, 1, '#8a6a4a'); rect(x+4, y-1, 1, 1, '#8a6a4a'); rect(x+6, y-1, 1, 1, '#8a6a4a');
-  // eye
-  px(x+6, y+3, '#000');
-  // nose
-  rect(x+7, y+5, 2, 1, '#1a1a1a');
-  // legs
-  rect(x-5, y+10, 2, 3, '#6a5040');
-  rect(x-1, y+10, 2, 3, '#6a5040');
-  rect(x+2, y+10, 2, 3, '#6a5040');
-  rect(x+5, y+10, 2, 3, '#6a5040');
+  const OUT = '#1a0808';
+  const D = '#7a6850';                              // wool shadow
+  const M = '#c8b890';                              // wool base
+  const L = '#f0e0c0';                              // wool highlight
+  const HD = '#3a2010';                             // horn shadow
+  const HM = '#6a4a2a';                             // horn mid
+  const HL = '#8a6838';                             // horn highlight
+
+  // ── SHADOW ──
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(x-8, y+14, 18, 1);
+
+  // ── WOOLLY BODY ──
+  rect(x-7, y+2, 14, 1, OUT);                       // back (bumpy outline)
+  for (let i=0; i<6; i++) px(x-6+i*3, y+1, OUT);    // wool tufts up top
+  rect(x-7, y+10, 14, 1, OUT);                      // belly outline
+  rect(x-8, y+3, 1, 7, OUT);
+  rect(x+7, y+3, 1, 7, OUT);
+  rect(x-7, y+3, 14, 7, M);                         // body fill
+  rect(x-7, y+3, 14, 1, L);                         // back highlight
+  rect(x-7, y+9, 14, 1, D);                         // belly shadow
+  // wool curls (alternating dither pattern)
+  for (let i=0; i<7; i++){
+    px(x-6+i*2, y+5, L);
+    px(x-5+i*2, y+6, D);
+    px(x-6+i*2, y+7, L);
+    px(x-5+i*2, y+8, D);
+  }
+
+  // ── HEAD ──
+  rect(x+4, y+1, 5, 1, OUT);
+  rect(x+4, y+7, 5, 1, OUT);
+  rect(x+3, y+2, 1, 5, OUT);
+  rect(x+9, y+2, 1, 5, OUT);
+  rect(x+4, y+2, 5, 5, '#a89070');                  // skin/face
+  rect(x+4, y+2, 5, 1, '#c8b090');                  // forehead
+  rect(x+4, y+6, 5, 1, '#7a6050');                  // chin shadow
+
+  // ── MASSIVE CURLED HORNS (front-facing) ──
+  // outline of horn curl on each side
+  rect(x+1, y-2, 4, 1, OUT);
+  rect(x, y-1, 1, 3, OUT);
+  rect(x+5, y-2, 4, 1, OUT);
+  rect(x+9, y-1, 1, 3, OUT);
+  // horn fill
+  rect(x+1, y-1, 4, 1, HL);                         // top of left curl
+  rect(x+1, y, 1, 2, HM);                           // left curl front
+  rect(x+5, y-1, 4, 1, HL);                         // top of right curl
+  rect(x+9, y, 1, 2, HM);                           // right curl front
+  rect(x+2, y+1, 3, 1, HM);                         // horn meeting head
+  rect(x+5, y+1, 3, 1, HM);
+  // horn segment ridges (3 per horn)
+  px(x+1, y, HL); px(x+3, y, HL); px(x+5, y, HL); px(x+7, y, HL);
+  // shadow inside curl
+  px(x+2, y, HD); px(x+7, y, HD);
+
+  // ── EYE ──
+  rect(x+5, y+3, 2, 1, OUT);
+  px(x+5, y+3, '#fff');
+  px(x+6, y+3, OUT);
+
+  // ── NOSE / MUZZLE ──
+  rect(x+6, y+5, 2, 1, OUT);
+  px(x+7, y+5, '#1a1a1a');
+
+  // ── LEGS ──
+  for (let i=0; i<4; i++){
+    const lx = x-5+i*4;
+    rect(lx, y+11, 1, 3, OUT);
+    rect(lx+1, y+11, 1, 3, OUT);
+    rect(lx, y+11, 2, 3, '#6a5040');
+    rect(lx, y+13, 2, 1, OUT);                      // hoof
+  }
 }
+
 function drawBear(x,y,frame=0){
-  // body
-  rect(x-7, y+2, 14, 9, '#6a4a2a');
-  rect(x-7, y+2, 14, 1, '#8a6a4a');
-  rect(x-7, y+10, 14, 1, '#3a2a1a');
-  // belly
-  rect(x-3, y+6, 8, 4, '#7a5a3a');
-  // head
-  rect(x+4, y-2, 7, 7, '#6a4a2a');
-  rect(x+4, y-2, 7, 1, '#8a6a4a');
-  // ears (rounded)
-  rect(x+4, y-3, 2, 2, '#6a4a2a');
-  rect(x+9, y-3, 2, 2, '#6a4a2a');
-  px(x+5, y-2, '#3a2a1a'); px(x+10, y-2, '#3a2a1a');
-  // snout
-  rect(x+9, y+1, 3, 3, '#8a6a4a');
-  rect(x+9, y+3, 3, 1, '#6a4a2a');
-  px(x+11, y+2, '#000'); // nose
-  // eyes
-  px(x+5, y+1, '#000'); px(x+8, y+1, '#000');
-  // mouth
-  rect(x+9, y+4, 2, 1, '#3a2a1a');
-  // legs/paws
-  rect(x-6, y+10, 3, 3, '#3a2a1a');
-  rect(x-1, y+10, 3, 3, '#3a2a1a');
-  rect(x+4, y+10, 3, 3, '#3a2a1a');
-  // claws
-  px(x-6, y+13, '#fff'); px(x-4, y+13, '#fff');
-  px(x-1, y+13, '#fff'); px(x+1, y+13, '#fff');
-  px(x+4, y+13, '#fff'); px(x+6, y+13, '#fff');
+  const OUT = '#0a0408';
+  const D = '#3a2a14';
+  const M = '#6a4a2a';
+  const L = '#8a6a40';
+  const B = '#a88a58';
+
+  // ── SHADOW ──
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(x-9, y+14, 20, 1);
+
+  // ── BODY (big and bulky) ──
+  rect(x-7, y+1, 14, 1, OUT);
+  rect(x-7, y+11, 14, 1, OUT);
+  rect(x-8, y+2, 1, 9, OUT);
+  rect(x+7, y+2, 1, 9, OUT);
+  rect(x-7, y+2, 14, 9, M);
+  rect(x-7, y+2, 14, 1, L);                         // back highlight
+  rect(x-7, y+10, 14, 1, D);                        // belly shadow
+  // shoulder hump highlight
+  rect(x+3, y+2, 4, 2, L);
+  px(x+5, y+3, B);
+  // tan belly
+  rect(x-3, y+6, 8, 4, '#8a6a40');
+  rect(x-3, y+6, 8, 1, '#a88a58');
+
+  // ── HEAD ──
+  rect(x+4, y-3, 7, 1, OUT);
+  rect(x+3, y-2, 1, 7, OUT);
+  rect(x+11, y-2, 1, 7, OUT);
+  rect(x+4, y+5, 7, 1, OUT);
+  rect(x+4, y-2, 7, 7, M);
+  rect(x+4, y-2, 7, 1, L);                          // forehead highlight
+  rect(x+4, y+4, 7, 1, D);                          // chin shadow
+
+  // ── EARS (rounded, with inner pink) ──
+  rect(x+3, y-4, 1, 2, OUT);
+  rect(x+5, y-4, 1, 2, OUT);
+  rect(x+4, y-4, 1, 2, M);
+  px(x+4, y-3, '#a04050');                          // inner ear pink
+  rect(x+9, y-4, 1, 2, OUT);
+  rect(x+11, y-4, 1, 2, OUT);
+  rect(x+10, y-4, 1, 2, M);
+  px(x+10, y-3, '#a04050');
+
+  // ── SNOUT (tan colored) ──
+  rect(x+9, y+1, 4, 1, OUT);                        // top
+  rect(x+9, y+4, 4, 1, OUT);
+  rect(x+12, y+1, 1, 3, OUT);
+  rect(x+9, y+2, 3, 2, L);
+  // black nose
+  rect(x+11, y+1, 2, 1, OUT);
+  rect(x+11, y+1, 2, 1, '#1a1a1a');
+
+  // ── EYES ──
+  rect(x+5, y, 1, 1, OUT);
+  rect(x+8, y, 1, 1, OUT);
+  px(x+5, y, '#fff');                               // eye sparkle
+  px(x+8, y, '#fff');
+  rect(x+5, y+1, 1, 1, OUT);
+  rect(x+8, y+1, 1, 1, OUT);
+  // brows
+  rect(x+5, y-1, 1, 1, D);
+  rect(x+8, y-1, 1, 1, D);
+
+  // ── MOUTH ──
+  rect(x+9, y+4, 2, 1, OUT);
+  rect(x+9, y+5, 2, 1, '#3a1808');
+
+  // ── LEGS / PAWS (with claws) ──
+  for (let i=0; i<3; i++){
+    const lx = x-6+i*5;
+    rect(lx, y+11, 1, 3, OUT);
+    rect(lx+2, y+11, 1, 3, OUT);
+    rect(lx, y+11, 3, 3, D);
+    // paw bottom
+    rect(lx, y+13, 3, 1, OUT);
+    // claws (3 per paw)
+    px(lx, y+14, '#fff');
+    px(lx+1, y+14, '#fff');
+    px(lx+2, y+14, '#fff');
+  }
 }
 
 const ANIMALS = {
