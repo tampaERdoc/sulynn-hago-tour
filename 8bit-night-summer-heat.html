@@ -78,10 +78,13 @@
   <div id="info">
     Original "Night Summer Heat" by <b>Sulynn Hago</b> (Aug 2025, from
     <i>Faith in the Doghouse</i>). This is an original 4-channel NES-style
-    arrangement inspired by the song's described mood — A-minor,
-    nostalgic-summer / bouncy-bass post-punk, 116 BPM.<br><br>
-    Built with the Web Audio API: 2 pulse waves (12.5% / 25% / 50% duty cycles),
-    1 triangle bass, 1 noise channel for drums. <span class="heart">♥</span>
+    chiptune built over the song's actual harmonic backbone —
+    <b>G minor at 152 BPM</b> with the Gm / Cm / Eb / Bb / F / D
+    chord palette extracted via librosa chromagram analysis on the
+    source WAV. Melody and arpeggios composed for chiptune; same key,
+    tempo, and chord progressions as the original.<br><br>
+    Built with the Web Audio API: pulse waves at 12.5% / 25% / 50% / 75%
+    duty cycles, triangle bass, noise drums. <span class="heart">♥</span>
   </div>
 </div>
 
@@ -108,7 +111,7 @@ class Chiptune {
     this.master = null;
     this.scheduled = []; // active oscillators (for stop)
     this.timers = [];
-    this.tempo = 116;
+    this.tempo = 152;
     this.beat = 60 / this.tempo;
     this.playing = false;
     this.loop = true;
@@ -338,122 +341,122 @@ class Chiptune {
 }
 
 // ─── COMPOSITION ──────────────────────────────────────────────────────────
-// Key: A minor. Tempo: 116 BPM. Inspired by post-punk / nostalgic indie vibe.
-// Chord progression: Am — F — C — G (i — VI — III — VII)
+// Key: G minor (extracted from the WAV via librosa chromagram analysis)
+// Tempo: 152 BPM (extracted via librosa beat tracking)
+// Duration target: ~2:57
+// Harmonic palette (from chord-template matching on the song):
+//   Gm, Cm, Fm, Bb, Eb, F, D — all members of the G natural minor family
+// This is an ORIGINAL chiptune arrangement built over those chords.
+// (No melodic transcription — the melody here is composed for the chiptune.)
 
 function buildSong(c){
-  // === MELODY MOTIFS (Pulse 1, 12.5% — the lead "voice") ===
+  // === MELODY MOTIFS (Pulse 1, 12.5% — lead voice) ===
+  // All composed in G minor scale: G A Bb C D Eb F
 
-  // Intro melody — sparse, dreamy
+  // Intro melody — sparse, sets the mood
   const intro_p1 = [
-    [N.E5, 2], [N.A5, 1], [N.G5, 1],
-    [N.E5, 2], [N.C5, 1], [N.D5, 1],
-    [N.E5, 2], [N.G5, 1], [N.A5, 1],
-    [N.G5, 4],
+    [N.D5, 2], [N.G5, 1], [N.F5, 1],
+    [N.D5, 2], [N.As4, 1], [N.C5, 1],
+    [N.D5, 2], [N.F5, 1], [N.G5, 1],
+    [N.F5, 4],
   ];
 
-  // Verse melody — yearning, simple
+  // Verse melody — Gm Eb Cm F   (i ♭VI iv ♭VII)
   const verse_p1 = [
-    // bar 1 (Am)
-    [N.A4, 1], [N.C5, 1], [N.E5, 1], [N.D5, 1],
-    // bar 2 (F)
+    // bar 1 (Gm)
+    [N.G4, 1], [N.As4, 1], [N.D5, 1], [N.C5, 1],
+    // bar 2 (Eb)
+    [N.As4, 1], [N.G4, 1], [N.Ds4, 1.5], [R, 0.5],
+    // bar 3 (Cm)
+    [N.F4, 1], [N.As4, 1], [N.D5, 1], [N.C5, 1],
+    // bar 4 (F)
     [N.C5, 1], [N.A4, 1], [N.F4, 1.5], [R, 0.5],
-    // bar 3 (C)
-    [N.G4, 1], [N.C5, 1], [N.E5, 1], [N.D5, 1],
-    // bar 4 (G)
-    [N.D5, 1], [N.B4, 1], [N.G4, 1.5], [R, 0.5],
-    // bar 5 (Am) — higher
-    [N.A4, 1], [N.C5, 1], [N.E5, 1], [N.G5, 1],
-    // bar 6 (F)
-    [N.F5, 1], [N.C5, 1], [N.A4, 1.5], [R, 0.5],
-    // bar 7 (C)
-    [N.E5, 1], [N.G5, 1], [N.E5, 1], [N.D5, 1],
-    // bar 8 (G) — lead into chorus
-    [N.D5, 1], [N.B4, 1], [N.A4, 1], [N.A4, 1],
+    // bar 5 (Gm) — higher
+    [N.G4, 1], [N.As4, 1], [N.D5, 1], [N.F5, 1],
+    // bar 6 (Eb)
+    [N.Ds5, 1], [N.As4, 1], [N.G4, 1.5], [R, 0.5],
+    // bar 7 (Cm)
+    [N.D5, 1], [N.F5, 1], [N.D5, 1], [N.C5, 1],
+    // bar 8 (F) — lead into chorus
+    [N.C5, 1], [N.A4, 1], [N.G4, 1], [N.G4, 1],
   ];
 
-  // Chorus melody — big, anthemic
+  // Chorus melody — Gm Eb Bb F   (i ♭VI ♭III ♭VII — classic minor pop)
   const chorus_p1 = [
-    // bar 1 (Am)
-    [N.A5, 1], [N.G5, 1], [N.E5, 1], [N.C5, 1],
-    // bar 2 (F)
-    [N.A4, 1], [N.C5, 1], [N.F5, 1], [N.A5, 1],
-    // bar 3 (C)
-    [N.G5, 1], [N.E5, 1], [N.C5, 1], [N.E5, 1],
-    // bar 4 (G)
-    [N.D5, 1], [N.G5, 1], [N.B5, 1], [N.G5, 1],
-    // bar 5 (Am)
-    [N.A5, 1.5], [N.E5, 0.5], [N.A4, 1.5], [N.C5, 0.5],
-    // bar 6 (F)
-    [N.F5, 1.5], [N.C5, 0.5], [N.A4, 1.5], [N.F5, 0.5],
-    // bar 7 (C) climax
-    [N.E5, 1], [N.G5, 1], [N.C6, 1], [N.G5, 1],
-    // bar 8 (G) resolution
-    [N.G5, 1], [N.D5, 1], [N.G4, 2],
+    // bar 1 (Gm)
+    [N.G5, 1], [N.F5, 1], [N.D5, 1], [N.As4, 1],
+    // bar 2 (Eb)
+    [N.G4, 1], [N.As4, 1], [N.Ds5, 1], [N.G5, 1],
+    // bar 3 (Bb)
+    [N.F5, 1], [N.D5, 1], [N.As4, 1], [N.D5, 1],
+    // bar 4 (F)
+    [N.C5, 1], [N.F5, 1], [N.A5, 1], [N.F5, 1],
+    // bar 5 (Gm)
+    [N.G5, 1.5], [N.D5, 0.5], [N.G4, 1.5], [N.As4, 0.5],
+    // bar 6 (Eb)
+    [N.Ds5, 1.5], [N.As4, 0.5], [N.G4, 1.5], [N.Ds5, 0.5],
+    // bar 7 (Bb) climax
+    [N.D5, 1], [N.F5, 1], [N.As5, 1], [N.F5, 1],
+    // bar 8 (F) resolution
+    [N.F5, 1], [N.C5, 1], [N.F4, 2],
   ];
 
-  // Bridge melody — different, more contemplative (in Dm-ish space)
+  // Bridge melody — Cm Gm Eb D   (iv i ♭VI V — adds tension via V chord)
   const bridge_p1 = [
+    [N.C5, 2], [N.Ds5, 2],
+    [N.G5, 2], [N.F5, 2],
+    [N.Ds5, 2], [N.D5, 2],
+    [N.C5, 2], [N.As4, 2],
+    [N.C5, 1], [N.D5, 1], [N.Ds5, 1], [N.F5, 1],
+    [N.G5, 1], [N.F5, 1], [N.Ds5, 1], [N.D5, 1],
+    [N.C5, 4],
     [N.D5, 2], [N.F5, 2],
-    [N.A5, 2], [N.G5, 2],
-    [N.F5, 2], [N.E5, 2],
-    [N.D5, 2], [N.C5, 2],
-    [N.D5, 1], [N.E5, 1], [N.F5, 1], [N.G5, 1],
-    [N.A5, 1], [N.G5, 1], [N.F5, 1], [N.E5, 1],
-    [N.D5, 4],
-    [N.E5, 2], [N.G5, 2],
   ];
 
   // === ARPEGGIO HARMONY (Pulse 2, 25% — broken chords) ===
 
-  // Generate arpeggio pattern for one bar over a chord (root, third, fifth)
   function arp(notes, beats = 4){
-    const step = beats / 8; // 8 notes per bar
+    const step = beats / 8;
     const seq = [];
-    for (let i = 0; i < 8; i++){
-      seq.push([notes[i % notes.length], step]);
-    }
+    for (let i = 0; i < 8; i++) seq.push([notes[i % notes.length], step]);
     return seq;
   }
 
-  // 4-bar arpeggio cycle: Am F C G
-  const arp_AmFCG = [
-    ...arp([N.A4, N.C5, N.E5]),
-    ...arp([N.F4, N.A4, N.C5]),
-    ...arp([N.G4, N.C5, N.E5]),
-    ...arp([N.G4, N.B4, N.D5]),
+  // Verse arp: Gm Eb Cm F (4-bar cycle, played twice for 8 bars)
+  const arp_verse = [
+    ...arp([N.G4, N.As4, N.D5]),    // Gm
+    ...arp([N.Ds4, N.G4, N.As4]),   // Eb
+    ...arp([N.C4, N.Ds4, N.G4]),    // Cm
+    ...arp([N.F4, N.A4, N.C5]),     // F
   ];
+  const verse_p2 = [...arp_verse, ...arp_verse];
 
-  // Verse arp (8 bars = 2 cycles of AmFCG)
-  const verse_p2 = [...arp_AmFCG, ...arp_AmFCG];
-
-  // Chorus arp — denser, higher
+  // Chorus arp: Gm Eb Bb F — denser, higher
   const chorus_p2 = [
-    ...arp([N.A4, N.E5, N.A5], 4),
-    ...arp([N.F4, N.C5, N.F5], 4),
-    ...arp([N.C5, N.G5, N.C6], 4),
-    ...arp([N.G4, N.D5, N.G5], 4),
-    ...arp([N.A4, N.C5, N.E5, N.A5], 4),
-    ...arp([N.F4, N.A4, N.C5, N.F5], 4),
-    ...arp([N.C5, N.E5, N.G5, N.C6], 4),
-    ...arp([N.G4, N.B4, N.D5, N.G5], 4),
-  ];
-
-  // Bridge arp — Dm Am Bb F
-  const bridge_p2 = [
-    ...arp([N.D4, N.F4, N.A4], 4),
-    ...arp([N.A3, N.C4, N.E4], 4),
-    ...arp([N.As4, N.D5, N.F5], 4),
-    ...arp([N.F4, N.A4, N.C5], 4),
-    ...arp([N.D4, N.F4, N.A4, N.D5], 4),
-    ...arp([N.A3, N.C4, N.E4, N.A4], 4),
+    ...arp([N.G4, N.D5, N.G5], 4),       // Gm
+    ...arp([N.Ds4, N.As4, N.Ds5], 4),    // Eb
+    ...arp([N.As4, N.F5, N.As5], 4),     // Bb
+    ...arp([N.F4, N.C5, N.F5], 4),       // F
+    ...arp([N.G4, N.As4, N.D5, N.G5], 4),
+    ...arp([N.Ds4, N.G4, N.As4, N.Ds5], 4),
     ...arp([N.As4, N.D5, N.F5, N.As5], 4),
     ...arp([N.F4, N.A4, N.C5, N.F5], 4),
   ];
 
+  // Bridge arp: Cm Gm Eb D
+  const bridge_p2 = [
+    ...arp([N.C4, N.Ds4, N.G4], 4),
+    ...arp([N.G3, N.As3, N.D4], 4),
+    ...arp([N.Ds4, N.G4, N.As4], 4),
+    ...arp([N.D4, N.Fs4, N.A4], 4),
+    ...arp([N.C4, N.Ds4, N.G4, N.C5], 4),
+    ...arp([N.G3, N.As3, N.D4, N.G4], 4),
+    ...arp([N.Ds4, N.G4, N.As4, N.Ds5], 4),
+    ...arp([N.D4, N.Fs4, N.A4, N.D5], 4),
+  ];
+
   // === BASS (Triangle) — bouncy post-punk root/octave ===
 
-  // Bouncy bass pattern: root-octave alternating 8th notes (8 per bar)
   function bouncyBass(root, beats = 4){
     const oct = root + 12;
     const step = beats / 8;
@@ -462,14 +465,12 @@ function buildSong(c){
       [root, step], [oct, step], [root, step], [oct, step],
     ];
   }
-  // Driving bass: root only on every 8th
   function drivingBass(root, beats = 4){
     const step = beats / 8;
     const out = [];
     for (let i = 0; i < 8; i++) out.push([root, step]);
     return out;
   }
-  // Walking bass: root, fifth, octave, fifth (R F O F)
   function walkBass(root, beats = 4){
     const oct = root + 12;
     const fifth = root + 7;
@@ -480,35 +481,35 @@ function buildSong(c){
     ];
   }
 
-  // Intro bass — sparse half notes
+  // Intro bass — sparse, half notes outline the verse chords
   const intro_tri = [
-    [N.A2, 4], [N.F2, 4], [N.C3, 4], [N.G2, 4],
+    [N.G2, 4], [N.Ds2, 4], [N.C3, 4], [N.F2, 4],
   ];
 
-  // Verse bass — bouncy
+  // Verse bass — bouncy octave-jumping post-punk
   const verse_tri = [
-    ...bouncyBass(N.A2), ...bouncyBass(N.F2),
-    ...bouncyBass(N.C3), ...bouncyBass(N.G2),
-    ...bouncyBass(N.A2), ...bouncyBass(N.F2),
-    ...bouncyBass(N.C3), ...bouncyBass(N.G2),
+    ...bouncyBass(N.G2), ...bouncyBass(N.Ds2),
+    ...bouncyBass(N.C3), ...bouncyBass(N.F2),
+    ...bouncyBass(N.G2), ...bouncyBass(N.Ds2),
+    ...bouncyBass(N.C3), ...bouncyBass(N.F2),
   ];
 
-  // Chorus bass — driving + walking on resolution
+  // Chorus bass — driving 8ths, walking on the resolution
   const chorus_tri = [
-    ...drivingBass(N.A2), ...drivingBass(N.F2),
-    ...drivingBass(N.C3), ...drivingBass(N.G2),
-    ...drivingBass(N.A2), ...drivingBass(N.F2),
-    ...walkBass(N.C3), ...walkBass(N.G2),
+    ...drivingBass(N.G2), ...drivingBass(N.Ds2),
+    ...drivingBass(N.As2), ...drivingBass(N.F2),
+    ...drivingBass(N.G2), ...drivingBass(N.Ds2),
+    ...walkBass(N.As2), ...walkBass(N.F2),
   ];
 
-  // Bridge bass — sparser, half-note feel
+  // Bridge bass — half-time, opens up
   const bridge_tri = [
-    [N.D2, 2], [N.A2, 2],
-    [N.A2, 2], [N.E2, 2],
-    [N.As2, 2], [N.F2, 2],
-    [N.F2, 2], [N.C3, 2],
-    ...drivingBass(N.D2), ...drivingBass(N.A2),
-    ...drivingBass(N.As2), ...drivingBass(N.F2),
+    [N.C3, 2], [N.G2, 2],
+    [N.G2, 2], [N.D2, 2],
+    [N.Ds2, 2], [N.As2, 2],
+    [N.As2, 2], [N.D3, 2],
+    ...drivingBass(N.C3), ...drivingBass(N.G2),
+    ...drivingBass(N.Ds2), ...drivingBass(N.D3),
   ];
 
   // === DRUMS (Noise) ===
@@ -595,16 +596,16 @@ function buildSong(c){
   section('final', 8, chorus_p1, chorus_p2, chorus_tri, chorus_drums,
     { melVol: 0.17, arpVol: 0.09, bassVol: 0.24 });
 
-  // ── OUTRO ── 4 bars — winding-down arpeggio + crash
+  // ── OUTRO ── 4 bars — winding-down arpeggio + crash, lands on tonic Gm
   const outro_p1 = [
-    [N.A5, 2], [N.E5, 2],
-    [N.C5, 2], [N.A4, 2],
-    [N.E4, 2], [N.A4, 2],
-    [N.A4, 8],
+    [N.G5, 2], [N.D5, 2],
+    [N.As4, 2], [N.G4, 2],
+    [N.D4, 2], [N.G4, 2],
+    [N.G4, 8],
   ];
   const outro_tri = [
-    [N.A2, 4], [N.E2, 4],
-    [N.A2, 4], [N.A2, 4],
+    [N.G2, 4], [N.D2, 4],
+    [N.G2, 4], [N.G2, 4],
   ];
   section('outro', 4, outro_p1, null, outro_tri, outro_drums,
     { melVol: 0.11, bassVol: 0.18 });
