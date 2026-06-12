@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Night Summer Heat — 8-bit</title>
+<title>Night Summer Heat — 16-bit</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
   *{box-sizing:border-box}
@@ -54,7 +54,7 @@
 <div id="card">
   <h1>SULYNN HAGO</h1>
   <h2>NIGHT SUMMER HEAT</h2>
-  <div class="tag">— 8-BIT TRIBUTE —</div>
+  <div class="tag">— 16-BIT TRIBUTE (SNES STYLE) —</div>
 
   <canvas id="vis" width="240" height="80"></canvas>
   <div id="status">PRESS PLAY</div>
@@ -69,25 +69,28 @@
   <input id="vol" type="range" min="0" max="100" value="65">
 
   <div style="margin-top:18px;text-align:left;font-size:11px">
-    <div class="ch"><span>P1 LEAD</span><span id="p1">—</span></div>
-    <div class="ch"><span>P2 ARP</span><span id="p2">—</span></div>
-    <div class="ch"><span>TRI BASS</span><span id="p3">—</span></div>
-    <div class="ch"><span>NOISE</span><span id="p4">—</span></div>
+    <div class="ch"><span>LEAD (VOX)</span><span id="p1">—</span></div>
+    <div class="ch"><span>GUITAR</span><span id="p2">—</span></div>
+    <div class="ch"><span>BASS</span><span id="p3">—</span></div>
+    <div class="ch"><span>DRUMS</span><span id="p4">—</span></div>
   </div>
 
   <div id="info">
     Original "Night Summer Heat" by <b>Sulynn Hago</b> (Aug 2025, from
-    <i>Faith in the Doghouse</i>). This is a true 8-bit cover built from
-    the recording itself — all three pitched channels are transcriptions
-    of the actual stems (demucs 4-stem separation + pyin pitch tracking):
-    <b>P1 sings Sulynn's vocal melody</b> (498 notes, 16th-note grid,
-    onset-split), <b>P2 plays the real guitar/synth arpeggios</b>
-    (452 notes), and <b>TRI plays the actual bass line</b> (230 notes).
+    <i>Faith in the Doghouse</i>). A 16-bit / SNES-style cover built from
+    the recording itself — every pitched part is a transcription of the
+    actual stems (demucs 4-stem separation + pyin pitch tracking):
+    <b>the lead sings Sulynn's vocal melody</b> (498 notes), <b>the
+    pluck voice plays the real guitar arpeggios</b> (452 notes), and
+    <b>the bass plays the actual bass line</b> (230 notes), with a soft
+    string pad following the song's 112-bar chord chart underneath.
     Every note lands at its real timestamp — <b>152 BPM, G minor</b>,
-    2:57, just like the record. Only the drums are synthesized patterns.
-    <br><br>
-    Built with the Web Audio API: pulse waves at 12.5% / 25% duty
-    cycles, triangle bass, noise drums. <span class="heart">♥</span>
+    2:57, just like the record.<br><br>
+    SNES sound recipe in the Web Audio API: detuned dual-oscillator
+    lead with delayed vibrato, lowpass "Gaussian" warmth on the master,
+    plucked filter-sweep guitar, square+sub bass, slow-attack pad —
+    and the S-DSP's signature <b>echo</b>: a 210ms feedback delay that
+    darkens with every repeat. <span class="heart">♥</span>
   </div>
 </div>
 
@@ -164,9 +167,10 @@ class Chiptune {
            this.songStart + this.events[this.evIdx].at < now + LOOKAHEAD){
       const e = this.events[this.evIdx++];
       const t = this.songStart + e.at;
-      if (e.kind === 'p1')      this.pulse('p1', this.wave12, e.midi, t, e.dur, e.vol);
-      else if (e.kind === 'p2') this.pulse('p2', this.wave25, e.midi, t, e.dur, e.vol);
-      else if (e.kind === 'tri') this.tri(e.midi, t, e.dur, e.vol);
+      if (e.kind === 'lead')      this.lead(e.midi, t, e.dur, e.vol);
+      else if (e.kind === 'gtr')  this.pluck(e.midi, t, e.dur, e.vol);
+      else if (e.kind === 'bass') this.bassNote(e.midi, t, e.dur, e.vol);
+      else if (e.kind === 'pad')  this.pad(e.midis, t, e.dur, e.vol);
       else if (e.kind === 'drum') this.drum(e.d, t);
     }
     // song finished?
@@ -187,84 +191,211 @@ class Chiptune {
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.35;
-    // gentle limiter via WaveShaper to keep things from clipping
+
+    // ── SNES-style master chain ──
+    // Gaussian-interpolation warmth: the S-DSP's resampler rolled off the
+    // top end. A gentle lowpass gets that "soft" SNES sheen.
+    const warmth = this.ctx.createBiquadFilter();
+    warmth.type = 'lowpass';
+    warmth.frequency.value = 9000;
+    warmth.Q.value = 0.5;
     const limiter = this.ctx.createDynamicsCompressor();
     limiter.threshold.value = -10;
     limiter.knee.value = 6;
     limiter.ratio.value = 6;
     limiter.attack.value = 0.003;
     limiter.release.value = 0.1;
-    this.master.connect(limiter);
+    this.master.connect(warmth);
+    warmth.connect(limiter);
     limiter.connect(this.ctx.destination);
 
-    // NES-style pulse waves at 4 duty cycles
-    this.wave12 = this.makePulse(0.125);
-    this.wave25 = this.makePulse(0.25);
-    this.wave50 = this.makePulse(0.5);
-    this.wave75 = this.makePulse(0.75);
-  }
-
-  makePulse(duty){
-    const n = 64;
-    const real = new Float32Array(n);
-    const imag = new Float32Array(n);
-    for (let i = 1; i < n; i++){
-      imag[i] = (2 / (i * Math.PI)) * Math.sin(i * Math.PI * duty);
-    }
-    return this.ctx.createPeriodicWave(real, imag);
+    // ── THE SNES ECHO ── the S-DSP's signature delay/feedback effect.
+    // Voices send into this bus; it feeds back through a lowpass so each
+    // repeat gets darker, then returns into the master.
+    this.echoBus = this.ctx.createGain();
+    this.echoBus.gain.value = 1.0;
+    const delay = this.ctx.createDelay(0.5);
+    delay.delayTime.value = 0.21;            // ~2 frames at SNES-typical rates
+    const fbFilt = this.ctx.createBiquadFilter();
+    fbFilt.type = 'lowpass';
+    fbFilt.frequency.value = 3200;
+    const fb = this.ctx.createGain();
+    fb.gain.value = 0.34;
+    const echoReturn = this.ctx.createGain();
+    echoReturn.gain.value = 0.55;
+    this.echoBus.connect(delay);
+    delay.connect(fbFilt);
+    fbFilt.connect(fb);
+    fb.connect(delay);                        // feedback loop
+    delay.connect(echoReturn);
+    echoReturn.connect(this.master);
   }
 
   freq(midi){
     return 440 * Math.pow(2, (midi - 69) / 12);
   }
 
-  // Pulse note (square wave with a duty cycle)
-  pulse(channel, wave, midi, t, dur, vol = 0.13, slide = null){
+  // ── LEAD — the "SNES vocal lead": two detuned oscillators with delayed
+  // vibrato through a lowpass, plus a generous echo send. Think LTTP
+  // flute / Chrono Trigger lead.
+  lead(midi, t, dur, vol = 0.16){
     if (midi == null) return;
-    const osc = this.ctx.createOscillator();
-    osc.setPeriodicWave(wave);
-    osc.frequency.setValueAtTime(this.freq(midi), t);
-    if (slide != null){
-      osc.frequency.exponentialRampToValueAtTime(this.freq(slide), t + dur * 0.9);
-    }
+    const f = this.freq(midi);
+    const o1 = this.ctx.createOscillator();
+    o1.type = 'square';
+    o1.frequency.setValueAtTime(f, t);
+    const o2 = this.ctx.createOscillator();
+    o2.type = 'sawtooth';
+    o2.frequency.setValueAtTime(f * 1.004, t);   // +7 cents chorus detune
+    // delayed vibrato (classic SNES lead expression)
+    const lfo = this.ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 5.6;
+    const lfoG = this.ctx.createGain();
+    lfoG.gain.setValueAtTime(0, t);
+    lfoG.gain.linearRampToValueAtTime(f * 0.007, t + Math.min(0.25, dur * 0.5));
+    lfo.connect(lfoG);
+    lfoG.connect(o1.frequency);
+    lfoG.connect(o2.frequency);
+    // tone shaping
+    const filt = this.ctx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.value = 2600;
+    filt.Q.value = 0.7;
+    // envelope: soft attack, sustain, release
     const g = this.ctx.createGain();
-    // sharp NES-style envelope: instant attack, sustain, quick decay at end
     g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(vol, t + 0.003);
-    g.gain.setValueAtTime(vol, t + dur * 0.88);
-    g.gain.linearRampToValueAtTime(0, t + dur);
-    osc.connect(g);
+    g.gain.linearRampToValueAtTime(vol, t + 0.012);
+    g.gain.setValueAtTime(vol, t + dur * 0.85);
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.03);
+    const mix = this.ctx.createGain();
+    mix.gain.value = 0.5;                        // two oscs -> halve
+    o1.connect(mix); o2.connect(mix);
+    mix.connect(filt);
+    filt.connect(g);
     g.connect(this.master);
-    osc.start(t);
-    osc.stop(t + dur + 0.02);
-    this.track(osc);
-    // log for visualizer (lookahead is ~350ms so these are short timers)
+    // echo send
+    const send = this.ctx.createGain();
+    send.gain.value = 0.30;
+    g.connect(send);
+    send.connect(this.echoBus);
+    o1.start(t); o1.stop(t + dur + 0.06);
+    o2.start(t); o2.stop(t + dur + 0.06);
+    lfo.start(t); lfo.stop(t + dur + 0.06);
+    this.track(o1); this.track(o2); this.track(lfo);
     this.timers.push(setTimeout(() => {
-      this.lastNotes[channel] = midi;
-      this.lastTimes[channel] = performance.now();
+      this.lastNotes.p1 = midi;
+      this.lastTimes.p1 = performance.now();
     }, Math.max(0, (t - this.ctx.currentTime) * 1000)));
   }
 
-  // Triangle bass — smoother, mellower
-  tri(midi, t, dur, vol = 0.22){
+  // ── PLUCK — sampled-guitar feel: saw through a closing lowpass with a
+  // fast exponential decay. Carries the transcribed guitar arpeggios.
+  pluck(midi, t, dur, vol = 0.12){
     if (midi == null) return;
-    const osc = this.ctx.createOscillator();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(this.freq(midi), t);
+    const f = this.freq(midi);
+    const o1 = this.ctx.createOscillator();
+    o1.type = 'sawtooth';
+    o1.frequency.setValueAtTime(f, t);
+    const o2 = this.ctx.createOscillator();
+    o2.type = 'sawtooth';
+    o2.frequency.setValueAtTime(f * 0.9965, t);  // -6 cents
+    const filt = this.ctx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.Q.value = 1.1;
+    // pluck brightness decays: filter sweeps closed
+    filt.frequency.setValueAtTime(3400, t);
+    filt.frequency.exponentialRampToValueAtTime(900, t + Math.min(0.35, dur));
+    const g = this.ctx.createGain();
+    const hold = Math.min(dur, 0.5);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(vol * 0.25, t + hold);
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.02);
+    const mix = this.ctx.createGain();
+    mix.gain.value = 0.5;
+    o1.connect(mix); o2.connect(mix);
+    mix.connect(filt);
+    filt.connect(g);
+    g.connect(this.master);
+    const send = this.ctx.createGain();
+    send.gain.value = 0.18;
+    g.connect(send);
+    send.connect(this.echoBus);
+    o1.start(t); o1.stop(t + dur + 0.05);
+    o2.start(t); o2.stop(t + dur + 0.05);
+    this.track(o1); this.track(o2);
+    this.timers.push(setTimeout(() => {
+      this.lastNotes.p2 = midi;
+      this.lastTimes.p2 = performance.now();
+    }, Math.max(0, (t - this.ctx.currentTime) * 1000)));
+  }
+
+  // ── BASS — square + sine sub through a lowpass: round, full low end
+  // (the transcribed bass line plays at true pitch now).
+  bassNote(midi, t, dur, vol = 0.28){
+    if (midi == null) return;
+    const f = this.freq(midi);
+    const o1 = this.ctx.createOscillator();
+    o1.type = 'square';
+    o1.frequency.setValueAtTime(f, t);
+    const o2 = this.ctx.createOscillator();
+    o2.type = 'sine';
+    o2.frequency.setValueAtTime(f, t);          // sub reinforcement
+    const filt = this.ctx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.value = 750;
+    filt.Q.value = 0.8;
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(vol, t + 0.003);
-    g.gain.setValueAtTime(vol, t + dur * 0.9);
-    g.gain.linearRampToValueAtTime(0, t + dur);
-    osc.connect(g);
+    g.gain.linearRampToValueAtTime(vol, t + 0.006);
+    g.gain.setValueAtTime(vol * 0.85, t + dur * 0.8);
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.02);
+    const mix = this.ctx.createGain();
+    mix.gain.value = 0.6;
+    o1.connect(mix); o2.connect(mix);
+    mix.connect(filt);
+    filt.connect(g);
     g.connect(this.master);
-    osc.start(t);
-    osc.stop(t + dur + 0.02);
-    this.track(osc);
+    o1.start(t); o1.stop(t + dur + 0.05);
+    o2.start(t); o2.stop(t + dur + 0.05);
+    this.track(o1); this.track(o2);
     this.timers.push(setTimeout(() => {
       this.lastNotes.tri = midi;
       this.lastTimes.tri = performance.now();
     }, Math.max(0, (t - this.ctx.currentTime) * 1000)));
+  }
+
+  // ── PAD — sustained chord bed from the song's chord chart. Slow attack,
+  // detuned saws, heavy echo send: the warm SNES string-pad wash.
+  pad(midis, t, dur, vol = 0.045){
+    if (!midis || !midis.length) return;
+    for (const midi of midis){
+      const f = this.freq(midi);
+      for (const det of [0.9955, 1.0045]){
+        const o = this.ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(f * det, t);
+        const filt = this.ctx.createBiquadFilter();
+        filt.type = 'lowpass';
+        filt.frequency.value = 1500;
+        filt.Q.value = 0.5;
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(vol, t + 0.10);
+        g.gain.setValueAtTime(vol, t + dur * 0.8);
+        g.gain.linearRampToValueAtTime(0, t + dur + 0.12);
+        o.connect(filt);
+        filt.connect(g);
+        g.connect(this.master);
+        const send = this.ctx.createGain();
+        send.gain.value = 0.35;
+        g.connect(send);
+        send.connect(this.echoBus);
+        o.start(t); o.stop(t + dur + 0.15);
+        this.track(o);
+      }
+    }
   }
 
   // Drum hit — kick / snare / hihat
@@ -361,33 +492,6 @@ class Chiptune {
       this.lastTimes.noise = performance.now();
       this.peakNoise = 1;
     }, Math.max(0, (t - this.ctx.currentTime) * 1000)));
-  }
-
-  // Schedule a voice — an array of [midi-pitch, beats]
-  voice(notes, instr, startTime, vol){
-    let t = startTime;
-    for (const [pitch, beats] of notes){
-      const dur = beats * this.beat;
-      if (pitch != null){
-        if (instr === 'p1') this.pulse('p1', this.wave12, pitch, t, dur * 0.95, vol);
-        else if (instr === 'p2') this.pulse('p2', this.wave25, pitch, t, dur * 0.95, vol);
-        else if (instr === 'p2sq') this.pulse('p2', this.wave50, pitch, t, dur * 0.95, vol);
-        else if (instr === 'tri') this.tri(pitch, t, dur * 0.95, vol);
-      }
-      t += dur;
-    }
-    return t;
-  }
-
-  // Drum pattern — array of [kind, beats]; kind = 'k','s','h','H','c','.'
-  drums(pattern, startTime){
-    let t = startTime;
-    for (const [kind, beats] of pattern){
-      const dur = beats * this.beat;
-      if (kind !== '.' && kind !== R) this.drum(kind, t);
-      t += dur;
-    }
-    return t;
   }
 
   stop(){
@@ -645,33 +749,56 @@ const GUITAR = [
 ];
 
 
+// Note-name → pitch-class (0..11), for building pad chords from the chart
+const PC = {
+  'C':0,'C#':1,'Db':1,'D':2,'D#':3,'Eb':3,'E':4,'F':5,'F#':6,'Gb':6,
+  'G':7,'G#':8,'Ab':8,'A':9,'A#':10,'Bb':10,'B':11,
+};
+function parseChord(name){
+  const m = name.match(/^([A-G][#b]?)(.*)$/);
+  return { root: PC[m[1]], minor: m[2].toLowerCase().startsWith('m') };
+}
+
 // Build the full event list as PURE DATA (no audio nodes created here).
 // The rolling scheduler in the Chiptune class consumes this list and
 // creates nodes just-in-time, ~350ms ahead of playback.
 //
-// All three pitched channels now play TRANSCRIPTIONS of the actual
-// recording (demucs 4-stem separation + pyin pitch tracking):
-//   P1  <- vocals stem   (Sulynn's melody, 16th grid, onset-split)
-//   P2  <- "other" stem  (guitar/synth arpeggios and riffs)
-//   TRI <- bass stem     (the actual bass line)
+// All pitched parts come from the actual recording (demucs 4-stem
+// separation + pyin pitch tracking):
+//   LEAD <- vocals stem  (Sulynn's melody, 16th grid, onset-split)
+//   GTR  <- "other" stem (guitar/synth arpeggios and riffs)
+//   BASS <- bass stem    (the actual bass line, true pitch)
+//   PAD  <- chord chart  (sustained triads under everything)
 // Only the drum pattern is generated (at the real bar timestamps).
 function buildEvents(){
   const ev = [];
 
-  // === PULSE 1 — the vocal melody ===
+  // === LEAD — the vocal melody ===
   for (const [at, midi, d] of MELODY){
-    ev.push({at, kind:'p1', midi, dur: Math.max(0.07, d * 0.95), vol: 0.22});
+    ev.push({at, kind:'lead', midi, dur: Math.max(0.07, d * 0.95), vol: 0.17});
   }
 
-  // === PULSE 2 — the guitar/synth arpeggios ===
+  // === GUITAR — the transcribed arpeggios/riffs ===
   for (const [at, midi, d] of GUITAR){
-    ev.push({at, kind:'p2', midi, dur: Math.max(0.07, d * 0.95), vol: 0.11});
+    ev.push({at, kind:'gtr', midi, dur: Math.max(0.07, d * 0.95), vol: 0.12});
   }
 
-  // === TRIANGLE — the bass line (+12 so the NES triangle speaks clearly
-  // on small speakers; chiptune-bass convention) ===
+  // === BASS — the bass line at true pitch (the new bass voice has
+  // harmonics, so it speaks on small speakers without the +12 shift) ===
   for (const [at, midi, d] of BASSLINE){
-    ev.push({at, kind:'tri', midi: midi + 12, dur: Math.max(0.1, d * 0.95), vol: 0.32});
+    ev.push({at, kind:'bass', midi, dur: Math.max(0.1, d * 0.95), vol: 0.30});
+  }
+
+  // === PAD — sustained chord triads from the chart (the SNES wash) ===
+  for (let i = 0; i < SONG_BARS.length; i++){
+    const [chordName, songTime] = SONG_BARS[i];
+    const next = (i+1 < SONG_BARS.length) ? SONG_BARS[i+1] : null;
+    const barEnd = next ? next[1] : SONG_DUR;
+    const { root, minor } = parseChord(chordName);
+    const third = minor ? 3 : 4;
+    ev.push({at: songTime, kind:'pad',
+             midis: [root + 48, root + 48 + third, root + 55],
+             dur: (barEnd - songTime) * 0.98, vol: 0.040});
   }
 
   // === NOISE — drums, generated at the real bar timestamps ===
@@ -695,10 +822,11 @@ function buildEvents(){
     if (!inIntro && (i % 8 === 0)) ev.push({at: songTime, kind:'drum', d:'c'});
   }
 
-  // Outro tail: final crash + sustained tonic G
+  // Outro tail: final crash + sustained tonic G chord
   ev.push({at: SONG_DUR + 0.05, kind:'drum', d:'c'});
-  ev.push({at: SONG_DUR + 0.05, kind:'tri', midi: N.G2 + 12, dur: 1.5, vol: 0.27});
-  ev.push({at: SONG_DUR + 0.05, kind:'p1', midi: N.G4, dur: 0.8, vol: 0.17});
+  ev.push({at: SONG_DUR + 0.05, kind:'bass', midi: N.G2, dur: 1.8, vol: 0.26});
+  ev.push({at: SONG_DUR + 0.05, kind:'lead', midi: N.G4, dur: 1.2, vol: 0.14});
+  ev.push({at: SONG_DUR + 0.05, kind:'pad', midis: [N.G3, N.As3, N.D4], dur: 2.2, vol: 0.05});
 
   ev.sort((a, b) => a.at - b.at);
   return ev;
@@ -734,7 +862,7 @@ function play(){
   c.playing = true;
   // instant confirmation blip — audible feedback the moment you press play,
   // before the first bar starts (also kicks suspended contexts awake)
-  c.pulse('p1', c.wave50, 81, c.ctx.currentTime + 0.02, 0.07, 0.25);
+  c.lead(81, c.ctx.currentTime + 0.02, 0.09, 0.22);
   // rolling lookahead scheduler — creates audio nodes just-in-time
   // (~350ms ahead), loops automatically while c.loop is on
   c.startScheduler(buildEvents(), SONG_DUR, () => stop());
