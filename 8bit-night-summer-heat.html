@@ -77,14 +77,16 @@
 
   <div id="info">
     Original "Night Summer Heat" by <b>Sulynn Hago</b> (Aug 2025, from
-    <i>Faith in the Doghouse</i>). This is an original 4-channel NES-style
-    chiptune built over the song's actual harmonic backbone —
-    <b>G minor at 152 BPM</b> with the Gm / Cm / Eb / Bb / F / D
-    chord palette extracted via librosa chromagram analysis on the
-    source WAV. Melody and arpeggios composed for chiptune; same key,
-    tempo, and chord progressions as the original.<br><br>
-    Built with the Web Audio API: pulse waves at 12.5% / 25% / 50% / 75%
-    duty cycles, triangle bass, noise drums. <span class="heart">♥</span>
+    <i>Faith in the Doghouse</i>). This is a 4-channel NES-style chiptune
+    cover that walks the song's actual <b>112-bar chord chart</b>,
+    extracted from the source WAV via librosa chromagram + triad-template
+    matching. Every chord change is scheduled at its real timestamp in
+    the original recording, so the harmonic motion lines up beat-for-beat
+    (<b>152 BPM, G minor</b>, 2:57). The melody lines are original
+    chiptune phrasing from a motif library — same chords as the song,
+    different melody.<br><br>
+    Built with the Web Audio API: pulse waves at 12.5% / 25% duty
+    cycles, triangle bass, noise drums. <span class="heart">♥</span>
   </div>
 </div>
 
@@ -341,15 +343,173 @@ class Chiptune {
 }
 
 // ─── COMPOSITION ──────────────────────────────────────────────────────────
-// Key: G minor (extracted from the WAV via librosa chromagram analysis)
-// Tempo: 152 BPM (extracted via librosa beat tracking)
-// Duration target: ~2:57
-// Harmonic palette (from chord-template matching on the song):
-//   Gm, Cm, Fm, Bb, Eb, F, D — all members of the G natural minor family
-// This is an ORIGINAL chiptune arrangement built over those chords.
-// (No melodic transcription — the melody here is composed for the chiptune.)
+// Bar-by-bar chord chart extracted from the source WAV via librosa
+// chromagram + triad-template matching, smoothed to 4-beat bars.
+// Each entry is [chord-name, start-time-in-seconds].
+// This is factual structural data (the song's chord-change timing).
+// 152 BPM, 112 bars, 177.84s, G minor.
+const SONG_BARS = [
+  ["G#m",0.37],["C",1.93],["A#m",3.48],["G",5.02],["G",6.57],["C",8.10],["Gm",9.64],["G",11.17],
+  ["G",12.70],["C",14.23],["C",15.79],["Gm",17.32],["G",18.88],["Cm",20.39],["D#",21.94],["Gm",23.45],
+  ["D#",25.03],["Cm",26.56],["Gm",28.10],["D#",29.63],["D#",31.18],["Cm",32.69],["D#",34.25],["D#",35.78],
+  ["Em",37.34],["Cm",38.85],["G#m",40.40],["D#",41.94],["G#m",43.47],["Cm",45.00],["G#",46.56],["A#",48.09],
+  ["A#",49.64],["C",51.15],["Gm",52.71],["G",54.24],["G",55.80],["Fm",57.31],["C",58.86],["Gm",60.40],
+  ["Gm",61.95],["Cm",63.48],["Gm",65.02],["D#",66.55],["Gm",68.10],["Cm",69.64],["Gm",71.19],["D#",72.70],
+  ["Em",74.26],["Cm",75.79],["Cm",77.35],["Gm",78.88],["G",80.41],["Cm",81.94],["Cm",83.48],["Gm",84.99],
+  ["G#m",86.54],["C",88.10],["D#",89.61],["Fm",91.18],["Fm",92.74],["C",94.25],["Cm",95.78],["Fm",97.34],
+  ["Fm",98.87],["Cm",100.40],["D#",101.94],["Fm",103.49],["Fm",105.02],["A#",106.51],["G",108.09],["C",109.64],
+  ["Gm",111.15],["Cm",112.71],["G#",114.27],["A#",115.77],["G#m",117.33],["Cm",118.86],["C#",120.42],["A#",121.95],
+  ["Dm",123.48],["Cm",125.02],["G#m",126.55],["A#m",128.08],["G#m",129.64],["Cm",131.17],["C#",132.70],["A#",134.23],
+  ["A#",135.79],["A#",137.30],["A#",138.86],["Cm",140.39],["C",141.94],["Gm",143.45],["D#",145.01],["Cm",146.52],
+  ["C",148.10],["G",149.63],["Gm",151.16],["C",152.69],["Cm",154.25],["G",155.78],["G",157.32],["C",158.85],
+  ["Gm",160.38],["Gm",161.94],["Gm",163.47],["C",165.00],["Gm",166.56],["Gm",168.09],["Gm",169.62],["Gm",171.18],
+];
+const SONG_DUR = 177.84;
+
+// Note-name → pitch-class (0..11)
+const PC = {
+  'C':0,'C#':1,'Db':1,'D':2,'D#':3,'Eb':3,'E':4,'F':5,'F#':6,'Gb':6,
+  'G':7,'G#':8,'Ab':8,'A':9,'A#':10,'Bb':10,'B':11,
+};
+function parseChord(name){
+  const m = name.match(/^([A-G][#b]?)(.*)$/);
+  return {
+    root: PC[m[1]],
+    minor: m[2].toLowerCase().startsWith('m'),
+  };
+}
+
+// MELODY MOTIFS — original chiptune phrases relative to the chord root.
+// '3' resolves to the chord's third (3 semitones if minor, 4 if major).
+// Each motif is [interval, duration_in_beats]. Each motif totals 4 beats = 1 bar.
+const MOTIFS = [
+  [[0,1],[12,1],[7,1],[12,1]],          // root-octave-fifth-octave
+  [[7,1],[12,1],['3',1],[0,1]],          // fifth-octave-third-root descending
+  [[12,2],[7,1],[0,1]],                  // held octave, fifth, root
+  [[0,1],['3',1],[7,1],['3',1]],         // chord arpeggio in beats
+  [[12,1],[7,1],['3',1],[0,1]],          // descending arpeggio
+  [[0,0.5],[7,0.5],[12,1],[7,1],['3',1]],// syncopated entry
+  [[7,1],[12,1],[15,1],[12,1]],          // higher reach (octave + fourth)
+  [[0,1.5],[12,0.5],[7,2]],              // dotted-rhythm hit
+  [[0,2],[null,2]],                      // sparse — half-bar rest
+  [[12,1],[15,1],[12,1],[7,1]],          // peak then settle
+];
+
+// Resolve a motif offset to an actual interval given chord quality.
+function resolveOffset(off, isMinor){
+  if (off === null) return null;
+  if (off === '3') return isMinor ? 3 : 4;
+  return off;
+}
 
 function buildSong(c){
+  // Schedule every bar at its actual timestamp from the song.
+  // Chord changes therefore line up with the original audio exactly.
+  const t0 = c.ctx.currentTime + 0.2;
+  const beat = c.beat;            // 60/152 = 0.3947s
+  const eighth = beat / 2;
+
+  let prevChord = null;
+  let drumIntensity = 0;          // grows through the song to mimic builds
+
+  for (let i = 0; i < SONG_BARS.length; i++){
+    const [chordName, songTime] = SONG_BARS[i];
+    const next = (i+1 < SONG_BARS.length) ? SONG_BARS[i+1] : null;
+    const barEnd = next ? next[1] : SONG_DUR;
+    const barDur = barEnd - songTime;
+    const t = t0 + songTime;
+    const chord = parseChord(chordName);
+    const root = chord.root;
+    const thirdInt = chord.minor ? 3 : 4;
+
+    // Detect section change from chord identity (used to vary drums)
+    const chordChanged = chordName !== prevChord;
+    prevChord = chordName;
+
+    // === TRIANGLE BASS — bouncy root/octave 8ths, locked to bar duration ===
+    const bassLow  = root + 36;   // ~G2 if root=G
+    const bassHigh = root + 48;
+    const eN = 8;                  // 8 eighth notes per bar (assumes 4/4)
+    const eD = barDur / eN;
+    for (let j = 0; j < eN; j++){
+      const bt = t + j * eD;
+      const note = (j % 2 === 0) ? bassLow : bassHigh;
+      c.tri(note, bt, eD * 0.92, 0.20);
+    }
+
+    // === PULSE 2 — chord arpeggio cycling through chord tones ===
+    const arpTones = [
+      root + 60,                   // root
+      root + 60 + thirdInt,        // third
+      root + 67,                   // fifth (root + 7)
+      root + 72,                   // octave
+    ];
+    for (let j = 0; j < eN; j++){
+      const at = t + j * eD;
+      // For the first half of the bar use ascending order, second half use a
+      // different permutation so it doesn't feel mechanical
+      const order = (i % 2 === 0)
+        ? [0,1,2,3, 0,1,2,3]
+        : [0,2,1,3, 2,1,0,3];
+      const tone = arpTones[order[j]];
+      c.pulse('p2', c.wave25, tone, at, eD * 0.92, 0.06);
+    }
+
+    // === PULSE 1 — melody motif (original chiptune phrasing) ===
+    // Cycle through the motif library, perturbed by bar index for variety.
+    const motif = MOTIFS[(i * 7 + (i>>2)) % MOTIFS.length];
+    let mt = t;
+    for (const [offset, dur] of motif){
+      const noteOffset = resolveOffset(offset, chord.minor);
+      const d = dur * (barDur / 4); // dur is in beats, scale to bar duration
+      if (noteOffset !== null){
+        const note = root + 72 + noteOffset;
+        c.pulse('p1', c.wave12, note, mt, d * 0.92, 0.13);
+      }
+      mt += d;
+    }
+
+    // === NOISE — drum pattern ===
+    // Basic rock beat with hi-hat 8ths, kick on 1 & 3-and, snare on 2 & 4.
+    // Bars 0-3 (intro): just hi-hats + occasional kick — gives a 4-bar warm-up
+    const inIntro = i < 4;
+    const inFinal = i >= SONG_BARS.length - 8;
+    for (let j = 0; j < eN; j++){
+      const dt = t + j * eD;
+      // hi-hat every 8th (skip a few in intro for breathing room)
+      if (!inIntro || j % 2 === 0){
+        c.drum(j === 6 && (i & 3) === 3 ? 'H' : 'h', dt);
+      }
+      // kick on 1 (j=0) and 3-and (j=5)
+      if (j === 0) c.drum('k', dt);
+      if (j === 5 && !inIntro) c.drum('k', dt);
+      // snare on 2 (j=2) and 4 (j=6)
+      if ((j === 2 || j === 6) && !inIntro) c.drum('s', dt);
+    }
+    // Crash on first beat of section starts (every 8 bars) past the intro
+    if (!inIntro && (i % 8 === 0)){
+      c.drum('c', t);
+    }
+    // Final-section crash
+    if (inFinal && i === SONG_BARS.length - 8){
+      c.drum('c', t);
+    }
+  }
+
+  // Outro tail: one last crash + sustained tonic
+  const tailT = t0 + SONG_DUR + 0.05;
+  c.drum('c', tailT);
+  c.tri(N.G2, tailT, beat * 4, 0.18);
+  c.pulse('p1', c.wave12, N.G4, tailT, beat * 2, 0.12);
+
+  c.songDuration = SONG_DUR + 1.5;
+  c.endTime = tailT + 1.5;
+  return c.songDuration;
+}
+
+// Old per-section composition (left in place but unused — the bar-timeline
+// driver above supersedes it). Kept for reference but never called.
+function buildSongLegacy_unused(c){
   // === MELODY MOTIFS (Pulse 1, 12.5% — lead voice) ===
   // All composed in G minor scale: G A Bb C D Eb F
 
