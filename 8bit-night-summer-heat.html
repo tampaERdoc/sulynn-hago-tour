@@ -66,7 +66,7 @@
   </div>
 
   <label>VOLUME</label>
-  <input id="vol" type="range" min="0" max="100" value="35">
+  <input id="vol" type="range" min="0" max="100" value="65">
 
   <div style="margin-top:18px;text-align:left;font-size:11px">
     <div class="ch"><span>P1 LEAD</span><span id="p1">—</span></div>
@@ -434,7 +434,7 @@ function buildSong(c){
     for (let j = 0; j < eN; j++){
       const bt = t + j * eD;
       const note = (j % 2 === 0) ? bassLow : bassHigh;
-      c.tri(note, bt, eD * 0.92, 0.20);
+      c.tri(note, bt, eD * 0.92, 0.30);
     }
 
     // === PULSE 2 — chord arpeggio cycling through chord tones ===
@@ -452,7 +452,7 @@ function buildSong(c){
         ? [0,1,2,3, 0,1,2,3]
         : [0,2,1,3, 2,1,0,3];
       const tone = arpTones[order[j]];
-      c.pulse('p2', c.wave25, tone, at, eD * 0.92, 0.06);
+      c.pulse('p2', c.wave25, tone, at, eD * 0.92, 0.10);
     }
 
     // === PULSE 1 — melody motif (original chiptune phrasing) ===
@@ -464,7 +464,7 @@ function buildSong(c){
       const d = dur * (barDur / 4); // dur is in beats, scale to bar duration
       if (noteOffset !== null){
         const note = root + 72 + noteOffset;
-        c.pulse('p1', c.wave12, note, mt, d * 0.92, 0.13);
+        c.pulse('p1', c.wave12, note, mt, d * 0.92, 0.19);
       }
       mt += d;
     }
@@ -803,8 +803,11 @@ function play(){
   c.init();
   if (c.ctx.state === 'suspended') c.ctx.resume();
   c.master.gain.cancelScheduledValues(c.ctx.currentTime);
-  c.master.gain.setValueAtTime($vol.value / 100 * 0.7, c.ctx.currentTime);
+  c.master.gain.setValueAtTime($vol.value / 100 * 1.0, c.ctx.currentTime);
   c.playing = true;
+  // instant confirmation blip — audible feedback the moment you press play,
+  // before the first bar starts (also kicks suspended contexts awake)
+  c.pulse('p1', c.wave50, 81, c.ctx.currentTime + 0.02, 0.07, 0.25);
   const dur = buildSong(c);
   $status.textContent = '♪ NOW PLAYING ♪';
   $play.disabled = true;
@@ -841,7 +844,7 @@ $loop.addEventListener('click', () => {
 });
 $vol.addEventListener('input', () => {
   if (c.master){
-    c.master.gain.setValueAtTime($vol.value / 100 * 0.7, c.ctx.currentTime);
+    c.master.gain.setValueAtTime($vol.value / 100 * 1.0, c.ctx.currentTime);
   }
 });
 
