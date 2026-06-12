@@ -111,18 +111,74 @@ class Chiptune {
   constructor(){
     this.ctx = null;
     this.master = null;
-    this.scheduled = []; // active oscillators (for stop)
+    this.live = [];      // strong refs to active nodes (prevents GC in WebKit)
     this.timers = [];
     this.tempo = 152;
     this.beat = 60 / this.tempo;
     this.playing = false;
     this.loop = true;
     this.songDuration = 0;
-    this.startedAt = 0;
+    // rolling scheduler state
+    this.events = [];
+    this.evIdx = 0;
+    this.songStart = 0;
+    this.schedTimer = null;
+    this.onComplete = null;
     // visualizer state
     this.lastNotes = { p1: null, p2: null, tri: null, noise: null };
     this.lastTimes = { p1: 0, p2: 0, tri: 0, noise: 0 };
     this.peakNoise = 0;
+  }
+
+  // Track a node so it can't be garbage-collected before it plays
+  // (WebKit collects scheduled-but-unreferenced nodes — the cause of
+  // "one beep then silence" in Safari-family browsers).
+  track(node){
+    this.live.push(node);
+    node.onended = () => {
+      const k = this.live.indexOf(node);
+      if (k >= 0) this.live.splice(k, 1);
+    };
+  }
+
+  // ── ROLLING LOOKAHEAD SCHEDULER ──
+  // Schedules only the next ~350ms of events every 60ms, instead of
+  // creating 9000 nodes upfront. Canonical Web Audio pattern.
+  startScheduler(events, totalDur, onComplete){
+    this.events = events;
+    this.evIdx = 0;
+    this.totalDur = totalDur;
+    this.songStart = this.ctx.currentTime + 0.15;
+    this.onComplete = onComplete;
+    if (this.schedTimer) clearInterval(this.schedTimer);
+    this.schedTimer = setInterval(() => this.schedTick(), 60);
+    this.schedTick();
+  }
+
+  schedTick(){
+    if (!this.ctx || !this.playing) return;
+    const LOOKAHEAD = 0.35;
+    const now = this.ctx.currentTime;
+    while (this.evIdx < this.events.length &&
+           this.songStart + this.events[this.evIdx].at < now + LOOKAHEAD){
+      const e = this.events[this.evIdx++];
+      const t = this.songStart + e.at;
+      if (e.kind === 'p1')      this.pulse('p1', this.wave12, e.midi, t, e.dur, e.vol);
+      else if (e.kind === 'p2') this.pulse('p2', this.wave25, e.midi, t, e.dur, e.vol);
+      else if (e.kind === 'tri') this.tri(e.midi, t, e.dur, e.vol);
+      else if (e.kind === 'drum') this.drum(e.d, t);
+    }
+    // song finished?
+    if (this.evIdx >= this.events.length && now > this.songStart + this.totalDur + 1.0){
+      if (this.loop && this.playing){
+        this.evIdx = 0;
+        this.songStart = now + 0.3;
+      } else {
+        clearInterval(this.schedTimer);
+        this.schedTimer = null;
+        if (this.onComplete) this.onComplete();
+      }
+    }
   }
 
   init(){
@@ -180,11 +236,12 @@ class Chiptune {
     g.connect(this.master);
     osc.start(t);
     osc.stop(t + dur + 0.02);
-    // log for visualizer
+    this.track(osc);
+    // log for visualizer (lookahead is ~350ms so these are short timers)
     this.timers.push(setTimeout(() => {
       this.lastNotes[channel] = midi;
       this.lastTimes[channel] = performance.now();
-    }, (t - this.ctx.currentTime) * 1000));
+    }, Math.max(0, (t - this.ctx.currentTime) * 1000)));
   }
 
   // Triangle bass — smoother, mellower
@@ -202,10 +259,11 @@ class Chiptune {
     g.connect(this.master);
     osc.start(t);
     osc.stop(t + dur + 0.02);
+    this.track(osc);
     this.timers.push(setTimeout(() => {
       this.lastNotes.tri = midi;
       this.lastTimes.tri = performance.now();
-    }, (t - this.ctx.currentTime) * 1000));
+    }, Math.max(0, (t - this.ctx.currentTime) * 1000)));
   }
 
   // Drum hit — kick / snare / hihat
@@ -223,6 +281,7 @@ class Chiptune {
       g.connect(this.master);
       osc.start(t);
       osc.stop(t + 0.15);
+      this.track(osc);
       // Click overlay for snap
       const cosc = this.ctx.createOscillator();
       cosc.type = 'square';
@@ -234,6 +293,7 @@ class Chiptune {
       cg.connect(this.master);
       cosc.start(t);
       cosc.stop(t + 0.02);
+      this.track(cosc);
     } else if (type === 's'){
       // Snare: noise + tone
       const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.15, this.ctx.sampleRate);
@@ -249,6 +309,7 @@ class Chiptune {
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
       src.connect(filt); filt.connect(g); g.connect(this.master);
       src.start(t); src.stop(t + 0.16);
+      this.track(src);
       // Snare body tone
       const osc = this.ctx.createOscillator();
       osc.type = 'triangle';
@@ -259,6 +320,7 @@ class Chiptune {
       og.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
       osc.connect(og); og.connect(this.master);
       osc.start(t); osc.stop(t + 0.1);
+      this.track(osc);
     } else if (type === 'h' || type === 'H'){
       // Hi-hat (h=closed, H=open)
       const dur = type === 'H' ? 0.13 : 0.025;
@@ -275,6 +337,7 @@ class Chiptune {
       g.gain.exponentialRampToValueAtTime(0.001, t + dur);
       src.connect(filt); filt.connect(g); g.connect(this.master);
       src.start(t); src.stop(t + 0.15);
+      this.track(src);
     } else if (type === 'c'){
       // Crash cymbal
       const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.5, this.ctx.sampleRate);
@@ -290,12 +353,13 @@ class Chiptune {
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
       src.connect(filt); filt.connect(g); g.connect(this.master);
       src.start(t); src.stop(t + 0.5);
+      this.track(src);
     }
     this.timers.push(setTimeout(() => {
       this.lastNotes.noise = type;
       this.lastTimes.noise = performance.now();
       this.peakNoise = 1;
-    }, (t - this.ctx.currentTime) * 1000));
+    }, Math.max(0, (t - this.ctx.currentTime) * 1000)));
   }
 
   // Schedule a voice — an array of [midi-pitch, beats]
@@ -327,6 +391,9 @@ class Chiptune {
 
   stop(){
     this.playing = false;
+    if (this.schedTimer){ clearInterval(this.schedTimer); this.schedTimer = null; }
+    this.events = [];
+    this.evIdx = 0;
     if (this.ctx){
       try { this.master.gain.cancelScheduledValues(this.ctx.currentTime); } catch(_){}
       this.master.gain.setValueAtTime(this.master.gain.value, this.ctx.currentTime);
@@ -337,6 +404,7 @@ class Chiptune {
         this.master = null;
       }, 80);
     }
+    this.live = [];
     this.timers.forEach(id => clearTimeout(id));
     this.timers = [];
   }
@@ -402,377 +470,76 @@ function resolveOffset(off, isMinor){
   return off;
 }
 
-function buildSong(c){
-  // Schedule every bar at its actual timestamp from the song.
-  // Chord changes therefore line up with the original audio exactly.
-  const t0 = c.ctx.currentTime + 0.2;
-  const beat = c.beat;            // 60/152 = 0.3947s
-  const eighth = beat / 2;
-
-  let prevChord = null;
-  let drumIntensity = 0;          // grows through the song to mimic builds
+// Build the full event list as PURE DATA (no audio nodes created here).
+// The rolling scheduler in the Chiptune class consumes this list and
+// creates nodes just-in-time, ~350ms ahead of playback. Times are
+// relative to song start; chord changes land at the original recording's
+// actual timestamps.
+function buildEvents(){
+  const ev = [];
 
   for (let i = 0; i < SONG_BARS.length; i++){
     const [chordName, songTime] = SONG_BARS[i];
     const next = (i+1 < SONG_BARS.length) ? SONG_BARS[i+1] : null;
     const barEnd = next ? next[1] : SONG_DUR;
     const barDur = barEnd - songTime;
-    const t = t0 + songTime;
     const chord = parseChord(chordName);
     const root = chord.root;
     const thirdInt = chord.minor ? 3 : 4;
 
-    // Detect section change from chord identity (used to vary drums)
-    const chordChanged = chordName !== prevChord;
-    prevChord = chordName;
-
-    // === TRIANGLE BASS — bouncy root/octave 8ths, locked to bar duration ===
-    const bassLow  = root + 36;   // ~G2 if root=G
+    // === TRIANGLE BASS — bouncy root/octave 8ths ===
+    const bassLow  = root + 36;
     const bassHigh = root + 48;
-    const eN = 8;                  // 8 eighth notes per bar (assumes 4/4)
+    const eN = 8;
     const eD = barDur / eN;
     for (let j = 0; j < eN; j++){
-      const bt = t + j * eD;
-      const note = (j % 2 === 0) ? bassLow : bassHigh;
-      c.tri(note, bt, eD * 0.92, 0.30);
+      ev.push({at: songTime + j*eD, kind:'tri',
+               midi: (j % 2 === 0) ? bassLow : bassHigh,
+               dur: eD * 0.92, vol: 0.30});
     }
 
-    // === PULSE 2 — chord arpeggio cycling through chord tones ===
-    const arpTones = [
-      root + 60,                   // root
-      root + 60 + thirdInt,        // third
-      root + 67,                   // fifth (root + 7)
-      root + 72,                   // octave
-    ];
+    // === PULSE 2 — chord arpeggio ===
+    const arpTones = [root + 60, root + 60 + thirdInt, root + 67, root + 72];
+    const order = (i % 2 === 0) ? [0,1,2,3,0,1,2,3] : [0,2,1,3,2,1,0,3];
     for (let j = 0; j < eN; j++){
-      const at = t + j * eD;
-      // For the first half of the bar use ascending order, second half use a
-      // different permutation so it doesn't feel mechanical
-      const order = (i % 2 === 0)
-        ? [0,1,2,3, 0,1,2,3]
-        : [0,2,1,3, 2,1,0,3];
-      const tone = arpTones[order[j]];
-      c.pulse('p2', c.wave25, tone, at, eD * 0.92, 0.10);
+      ev.push({at: songTime + j*eD, kind:'p2',
+               midi: arpTones[order[j]], dur: eD * 0.92, vol: 0.10});
     }
 
-    // === PULSE 1 — melody motif (original chiptune phrasing) ===
-    // Cycle through the motif library, perturbed by bar index for variety.
+    // === PULSE 1 — melody motif ===
     const motif = MOTIFS[(i * 7 + (i>>2)) % MOTIFS.length];
-    let mt = t;
+    let mt = songTime;
     for (const [offset, dur] of motif){
       const noteOffset = resolveOffset(offset, chord.minor);
-      const d = dur * (barDur / 4); // dur is in beats, scale to bar duration
+      const d = dur * (barDur / 4);
       if (noteOffset !== null){
-        const note = root + 72 + noteOffset;
-        c.pulse('p1', c.wave12, note, mt, d * 0.92, 0.19);
+        ev.push({at: mt, kind:'p1', midi: root + 72 + noteOffset,
+                 dur: d * 0.92, vol: 0.19});
       }
       mt += d;
     }
 
-    // === NOISE — drum pattern ===
-    // Basic rock beat with hi-hat 8ths, kick on 1 & 3-and, snare on 2 & 4.
-    // Bars 0-3 (intro): just hi-hats + occasional kick — gives a 4-bar warm-up
+    // === NOISE — drums ===
     const inIntro = i < 4;
-    const inFinal = i >= SONG_BARS.length - 8;
     for (let j = 0; j < eN; j++){
-      const dt = t + j * eD;
-      // hi-hat every 8th (skip a few in intro for breathing room)
+      const at = songTime + j*eD;
       if (!inIntro || j % 2 === 0){
-        c.drum(j === 6 && (i & 3) === 3 ? 'H' : 'h', dt);
+        ev.push({at, kind:'drum', d: (j === 6 && (i & 3) === 3) ? 'H' : 'h'});
       }
-      // kick on 1 (j=0) and 3-and (j=5)
-      if (j === 0) c.drum('k', dt);
-      if (j === 5 && !inIntro) c.drum('k', dt);
-      // snare on 2 (j=2) and 4 (j=6)
-      if ((j === 2 || j === 6) && !inIntro) c.drum('s', dt);
+      if (j === 0) ev.push({at, kind:'drum', d:'k'});
+      if (j === 5 && !inIntro) ev.push({at, kind:'drum', d:'k'});
+      if ((j === 2 || j === 6) && !inIntro) ev.push({at, kind:'drum', d:'s'});
     }
-    // Crash on first beat of section starts (every 8 bars) past the intro
-    if (!inIntro && (i % 8 === 0)){
-      c.drum('c', t);
-    }
-    // Final-section crash
-    if (inFinal && i === SONG_BARS.length - 8){
-      c.drum('c', t);
-    }
+    if (!inIntro && (i % 8 === 0)) ev.push({at: songTime, kind:'drum', d:'c'});
   }
 
-  // Outro tail: one last crash + sustained tonic
-  const tailT = t0 + SONG_DUR + 0.05;
-  c.drum('c', tailT);
-  c.tri(N.G2, tailT, beat * 4, 0.18);
-  c.pulse('p1', c.wave12, N.G4, tailT, beat * 2, 0.12);
+  // Outro tail: final crash + sustained tonic G
+  ev.push({at: SONG_DUR + 0.05, kind:'drum', d:'c'});
+  ev.push({at: SONG_DUR + 0.05, kind:'tri', midi: N.G2, dur: 1.5, vol: 0.27});
+  ev.push({at: SONG_DUR + 0.05, kind:'p1', midi: N.G4, dur: 0.8, vol: 0.17});
 
-  c.songDuration = SONG_DUR + 1.5;
-  c.endTime = tailT + 1.5;
-  return c.songDuration;
-}
-
-// Old per-section composition (left in place but unused — the bar-timeline
-// driver above supersedes it). Kept for reference but never called.
-function buildSongLegacy_unused(c){
-  // === MELODY MOTIFS (Pulse 1, 12.5% — lead voice) ===
-  // All composed in G minor scale: G A Bb C D Eb F
-
-  // Intro melody — sparse, sets the mood
-  const intro_p1 = [
-    [N.D5, 2], [N.G5, 1], [N.F5, 1],
-    [N.D5, 2], [N.As4, 1], [N.C5, 1],
-    [N.D5, 2], [N.F5, 1], [N.G5, 1],
-    [N.F5, 4],
-  ];
-
-  // Verse melody — Gm Eb Cm F   (i ♭VI iv ♭VII)
-  const verse_p1 = [
-    // bar 1 (Gm)
-    [N.G4, 1], [N.As4, 1], [N.D5, 1], [N.C5, 1],
-    // bar 2 (Eb)
-    [N.As4, 1], [N.G4, 1], [N.Ds4, 1.5], [R, 0.5],
-    // bar 3 (Cm)
-    [N.F4, 1], [N.As4, 1], [N.D5, 1], [N.C5, 1],
-    // bar 4 (F)
-    [N.C5, 1], [N.A4, 1], [N.F4, 1.5], [R, 0.5],
-    // bar 5 (Gm) — higher
-    [N.G4, 1], [N.As4, 1], [N.D5, 1], [N.F5, 1],
-    // bar 6 (Eb)
-    [N.Ds5, 1], [N.As4, 1], [N.G4, 1.5], [R, 0.5],
-    // bar 7 (Cm)
-    [N.D5, 1], [N.F5, 1], [N.D5, 1], [N.C5, 1],
-    // bar 8 (F) — lead into chorus
-    [N.C5, 1], [N.A4, 1], [N.G4, 1], [N.G4, 1],
-  ];
-
-  // Chorus melody — Gm Eb Bb F   (i ♭VI ♭III ♭VII — classic minor pop)
-  const chorus_p1 = [
-    // bar 1 (Gm)
-    [N.G5, 1], [N.F5, 1], [N.D5, 1], [N.As4, 1],
-    // bar 2 (Eb)
-    [N.G4, 1], [N.As4, 1], [N.Ds5, 1], [N.G5, 1],
-    // bar 3 (Bb)
-    [N.F5, 1], [N.D5, 1], [N.As4, 1], [N.D5, 1],
-    // bar 4 (F)
-    [N.C5, 1], [N.F5, 1], [N.A5, 1], [N.F5, 1],
-    // bar 5 (Gm)
-    [N.G5, 1.5], [N.D5, 0.5], [N.G4, 1.5], [N.As4, 0.5],
-    // bar 6 (Eb)
-    [N.Ds5, 1.5], [N.As4, 0.5], [N.G4, 1.5], [N.Ds5, 0.5],
-    // bar 7 (Bb) climax
-    [N.D5, 1], [N.F5, 1], [N.As5, 1], [N.F5, 1],
-    // bar 8 (F) resolution
-    [N.F5, 1], [N.C5, 1], [N.F4, 2],
-  ];
-
-  // Bridge melody — Cm Gm Eb D   (iv i ♭VI V — adds tension via V chord)
-  const bridge_p1 = [
-    [N.C5, 2], [N.Ds5, 2],
-    [N.G5, 2], [N.F5, 2],
-    [N.Ds5, 2], [N.D5, 2],
-    [N.C5, 2], [N.As4, 2],
-    [N.C5, 1], [N.D5, 1], [N.Ds5, 1], [N.F5, 1],
-    [N.G5, 1], [N.F5, 1], [N.Ds5, 1], [N.D5, 1],
-    [N.C5, 4],
-    [N.D5, 2], [N.F5, 2],
-  ];
-
-  // === ARPEGGIO HARMONY (Pulse 2, 25% — broken chords) ===
-
-  function arp(notes, beats = 4){
-    const step = beats / 8;
-    const seq = [];
-    for (let i = 0; i < 8; i++) seq.push([notes[i % notes.length], step]);
-    return seq;
-  }
-
-  // Verse arp: Gm Eb Cm F (4-bar cycle, played twice for 8 bars)
-  const arp_verse = [
-    ...arp([N.G4, N.As4, N.D5]),    // Gm
-    ...arp([N.Ds4, N.G4, N.As4]),   // Eb
-    ...arp([N.C4, N.Ds4, N.G4]),    // Cm
-    ...arp([N.F4, N.A4, N.C5]),     // F
-  ];
-  const verse_p2 = [...arp_verse, ...arp_verse];
-
-  // Chorus arp: Gm Eb Bb F — denser, higher
-  const chorus_p2 = [
-    ...arp([N.G4, N.D5, N.G5], 4),       // Gm
-    ...arp([N.Ds4, N.As4, N.Ds5], 4),    // Eb
-    ...arp([N.As4, N.F5, N.As5], 4),     // Bb
-    ...arp([N.F4, N.C5, N.F5], 4),       // F
-    ...arp([N.G4, N.As4, N.D5, N.G5], 4),
-    ...arp([N.Ds4, N.G4, N.As4, N.Ds5], 4),
-    ...arp([N.As4, N.D5, N.F5, N.As5], 4),
-    ...arp([N.F4, N.A4, N.C5, N.F5], 4),
-  ];
-
-  // Bridge arp: Cm Gm Eb D
-  const bridge_p2 = [
-    ...arp([N.C4, N.Ds4, N.G4], 4),
-    ...arp([N.G3, N.As3, N.D4], 4),
-    ...arp([N.Ds4, N.G4, N.As4], 4),
-    ...arp([N.D4, N.Fs4, N.A4], 4),
-    ...arp([N.C4, N.Ds4, N.G4, N.C5], 4),
-    ...arp([N.G3, N.As3, N.D4, N.G4], 4),
-    ...arp([N.Ds4, N.G4, N.As4, N.Ds5], 4),
-    ...arp([N.D4, N.Fs4, N.A4, N.D5], 4),
-  ];
-
-  // === BASS (Triangle) — bouncy post-punk root/octave ===
-
-  function bouncyBass(root, beats = 4){
-    const oct = root + 12;
-    const step = beats / 8;
-    return [
-      [root, step], [oct, step], [root, step], [oct, step],
-      [root, step], [oct, step], [root, step], [oct, step],
-    ];
-  }
-  function drivingBass(root, beats = 4){
-    const step = beats / 8;
-    const out = [];
-    for (let i = 0; i < 8; i++) out.push([root, step]);
-    return out;
-  }
-  function walkBass(root, beats = 4){
-    const oct = root + 12;
-    const fifth = root + 7;
-    const step = beats / 8;
-    return [
-      [root, step], [root, step], [fifth, step], [oct, step],
-      [oct, step], [fifth, step], [root, step], [fifth, step],
-    ];
-  }
-
-  // Intro bass — sparse, half notes outline the verse chords
-  const intro_tri = [
-    [N.G2, 4], [N.Ds2, 4], [N.C3, 4], [N.F2, 4],
-  ];
-
-  // Verse bass — bouncy octave-jumping post-punk
-  const verse_tri = [
-    ...bouncyBass(N.G2), ...bouncyBass(N.Ds2),
-    ...bouncyBass(N.C3), ...bouncyBass(N.F2),
-    ...bouncyBass(N.G2), ...bouncyBass(N.Ds2),
-    ...bouncyBass(N.C3), ...bouncyBass(N.F2),
-  ];
-
-  // Chorus bass — driving 8ths, walking on the resolution
-  const chorus_tri = [
-    ...drivingBass(N.G2), ...drivingBass(N.Ds2),
-    ...drivingBass(N.As2), ...drivingBass(N.F2),
-    ...drivingBass(N.G2), ...drivingBass(N.Ds2),
-    ...walkBass(N.As2), ...walkBass(N.F2),
-  ];
-
-  // Bridge bass — half-time, opens up
-  const bridge_tri = [
-    [N.C3, 2], [N.G2, 2],
-    [N.G2, 2], [N.D2, 2],
-    [N.Ds2, 2], [N.As2, 2],
-    [N.As2, 2], [N.D3, 2],
-    ...drivingBass(N.C3), ...drivingBass(N.G2),
-    ...drivingBass(N.Ds2), ...drivingBass(N.D3),
-  ];
-
-  // === DRUMS (Noise) ===
-
-  // Standard rock beat (4 beats, 1 bar)
-  // K-h-S-h-K-h-S-h with h on every 8th
-  const beat_basic = [
-    ['k',0.5],['h',0.5],['s',0.5],['h',0.5],
-    ['k',0.5],['h',0.5],['s',0.5],['h',0.5],
-  ];
-  // Verse pattern (8 bars)
-  const verse_drums = [];
-  for (let i = 0; i < 8; i++) verse_drums.push(...beat_basic);
-
-  // Chorus pattern — busier, kick on 1 and 2-and
-  const beat_chorus = [
-    ['k',0.5],['h',0.5],['s',0.5],['h',0.5],
-    ['k',0.25],['k',0.25],['h',0.5],['s',0.5],['h',0.5],
-  ];
-  const chorus_drums = [];
-  for (let i = 0; i < 7; i++) chorus_drums.push(...beat_chorus);
-  // Crash + roll on bar 8
-  chorus_drums.push(['c',0.5],['h',0.5],['s',0.5],['h',0.5],
-    ['s',0.25],['s',0.25],['s',0.25],['s',0.25],['c',1]);
-
-  // Bridge — half-time feel (kick on 1, snare on 3)
-  const beat_bridge = [
-    ['k',1],['h',1],['s',1],['h',1],
-  ];
-  const bridge_drums = [];
-  for (let i = 0; i < 8; i++) bridge_drums.push(...beat_bridge);
-
-  // Intro — just hihat
-  const intro_drums = [];
-  for (let i = 0; i < 4; i++) for (let j = 0; j < 8; j++) intro_drums.push(['h',0.5]);
-
-  // Outro — final crash + fade
-  const outro_drums = [
-    ['c',2],['k',1],['s',1],
-    ['k',1],['s',1],['k',1],['c',1],
-  ];
-
-  // === SONG STRUCTURE ===
-  const beat = c.beat;
-  const W = 4 * beat;  // 1 bar = 4 beats
-  let t = c.ctx.currentTime + 0.15;
-  const startT = t;
-
-  // Helper to schedule a section across all 4 voices simultaneously
-  function section(name, bars, melody, arp, bass, drums, opts = {}){
-    const len = bars * W;
-    if (melody) c.voice(melody, 'p1', t, opts.melVol || 0.13);
-    if (arp)    c.voice(arp,    'p2', t, opts.arpVol || 0.08);
-    if (bass)   c.voice(bass,   'tri', t, opts.bassVol || 0.20);
-    if (drums)  c.drums(drums, t);
-    t += len;
-  }
-
-  // ── INTRO ── 4 bars
-  section('intro', 4, intro_p1, null, intro_tri, intro_drums,
-    { melVol: 0.11, bassVol: 0.16 });
-
-  // ── VERSE 1 ── 8 bars
-  section('verse1', 8, verse_p1, verse_p2, verse_tri, verse_drums,
-    { arpVol: 0.06 });
-
-  // ── CHORUS 1 ── 8 bars
-  section('chorus1', 8, chorus_p1, chorus_p2, chorus_tri, chorus_drums,
-    { melVol: 0.15, arpVol: 0.08, bassVol: 0.23 });
-
-  // ── VERSE 2 ── 8 bars (slight variation: octave-up arp)
-  const verse_p2_up = verse_p2.map(n => n[0] != null ? [n[0]+12, n[1]] : n);
-  section('verse2', 8, verse_p1, verse_p2_up, verse_tri, verse_drums);
-
-  // ── CHORUS 2 ── 8 bars
-  section('chorus2', 8, chorus_p1, chorus_p2, chorus_tri, chorus_drums,
-    { melVol: 0.15, arpVol: 0.08, bassVol: 0.23 });
-
-  // ── BRIDGE ── 8 bars
-  section('bridge', 8, bridge_p1, bridge_p2, bridge_tri, bridge_drums,
-    { melVol: 0.12, arpVol: 0.07 });
-
-  // ── FINAL CHORUS ── 8 bars
-  section('final', 8, chorus_p1, chorus_p2, chorus_tri, chorus_drums,
-    { melVol: 0.17, arpVol: 0.09, bassVol: 0.24 });
-
-  // ── OUTRO ── 4 bars — winding-down arpeggio + crash, lands on tonic Gm
-  const outro_p1 = [
-    [N.G5, 2], [N.D5, 2],
-    [N.As4, 2], [N.G4, 2],
-    [N.D4, 2], [N.G4, 2],
-    [N.G4, 8],
-  ];
-  const outro_tri = [
-    [N.G2, 4], [N.D2, 4],
-    [N.G2, 4], [N.G2, 4],
-  ];
-  section('outro', 4, outro_p1, null, outro_tri, outro_drums,
-    { melVol: 0.11, bassVol: 0.18 });
-
-  c.songDuration = t - startT;
-  c.endTime = t;
-  return c.songDuration;
+  ev.sort((a, b) => a.at - b.at);
+  return ev;
 }
 
 // ─── UI ───────────────────────────────────────────────────────────────────
@@ -797,8 +564,6 @@ function midiName(midi){
   return note + oct;
 }
 
-let loopTimerId = null;
-
 function play(){
   c.init();
   if (c.ctx.state === 'suspended') c.ctx.resume();
@@ -808,25 +573,15 @@ function play(){
   // instant confirmation blip — audible feedback the moment you press play,
   // before the first bar starts (also kicks suspended contexts awake)
   c.pulse('p1', c.wave50, 81, c.ctx.currentTime + 0.02, 0.07, 0.25);
-  const dur = buildSong(c);
+  // rolling lookahead scheduler — creates audio nodes just-in-time
+  // (~350ms ahead), loops automatically while c.loop is on
+  c.startScheduler(buildEvents(), SONG_DUR, () => stop());
   $status.textContent = '♪ NOW PLAYING ♪';
   $play.disabled = true;
   $stop.disabled = false;
-
-  // Schedule loop or end
-  if (loopTimerId) clearTimeout(loopTimerId);
-  loopTimerId = setTimeout(() => {
-    if (c.loop && c.playing){
-      play();
-    } else {
-      stop();
-    }
-  }, (dur + 0.3) * 1000);
 }
 
 function stop(){
-  c.playing = false;
-  if (loopTimerId){ clearTimeout(loopTimerId); loopTimerId = null; }
   c.stop();
   $status.textContent = 'STOPPED';
   $play.disabled = false;
